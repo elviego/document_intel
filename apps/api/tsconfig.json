@@ -1,0 +1,9 @@
+{
+  "extends": "@fin-tribe/tsconfig/node.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": { "@/*": ["src/*"] },
+    "outDir": "dist"
+  },
+  "include": ["src"]
+}

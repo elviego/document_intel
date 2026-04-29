@@ -1,0 +1,77 @@
+{
+  "nav": {
+    "dashboard": "Painel",
+    "transactions": "Movimentos",
+    "summary": "Resumo Mensal",
+    "salaries": "Ordenados",
+    "meals": "Refeições",
+    "budget": "Orçamento",
+    "categories": "Categorias",
+    "bankAccounts": "Contas Bancárias",
+    "schoolYears": "Anos Letivos",
+    "users": "Utilizadores"
+  },
+  "common": {
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "delete": "Eliminar",
+    "edit": "Editar",
+    "add": "Adicionar",
+    "export": "Exportar CSV",
+    "import": "Importar CSV",
+    "loading": "A carregar...",
+    "noData": "Sem dados",
+    "confirm": "Confirmar",
+    "search": "Pesquisar",
+    "filter": "Filtrar",
+    "total": "Total",
+    "balance": "Balanço",
+    "income": "Receitas",
+    "expense": "Despesas"
+  },
+  "auth": {
+    "signIn": "Entrar",
+    "signOut": "Sair",
+    "email": "Email",
+    "password": "Palavra-passe",
+    "forgotPassword": "Esqueceu a palavra-passe?"
+  },
+  "transactions": {
+    "title": "Movimentos",
+    "date": "Data",
+    "month": "Mês",
+    "type": "Tipo",
+    "amount": "Valor",
+    "description": "Descrição",
+    "account": "Conta",
+    "addTransaction": "Novo Movimento"
+  },
+  "meals": {
+    "title": "Refeições",
+    "withSoup": "Com Sopa",
+    "withoutSoup": "Sem Sopa",
+    "schoolCost": "Custo Escola",
+    "parentPrice": "Preço Pais",
+    "markup": "Margem (%)",
+    "addMeal": "Registar Refeição",
+    "billing": "Faturação Mensal"
+  },
+  "budget": {
+    "title": "Orçamento",
+    "planned": "Planeado",
+    "actual": "Real",
+    "variance": "Variação",
+    "copyFromYear": "Copiar do ano anterior"
+  },
+  "categories": {
+    "title": "Categorias",
+    "namePt": "Nome (PT)",
+    "nameEn": "Nome (EN)",
+    "classification": "Classificação",
+    "group": "Grupo",
+    "description": "Descrição",
+    "active": "Ativa",
+    "receita": "Receita",
+    "despesa": "Despesa"
+  }
+}

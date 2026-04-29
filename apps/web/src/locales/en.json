@@ -1,0 +1,77 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "transactions": "Transactions",
+    "summary": "Monthly Summary",
+    "salaries": "Salaries",
+    "meals": "Meals",
+    "budget": "Budget",
+    "categories": "Categories",
+    "bankAccounts": "Bank Accounts",
+    "schoolYears": "School Years",
+    "users": "Users"
+  },
+  "common": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "add": "Add",
+    "export": "Export CSV",
+    "import": "Import CSV",
+    "loading": "Loading...",
+    "noData": "No data",
+    "confirm": "Confirm",
+    "search": "Search",
+    "filter": "Filter",
+    "total": "Total",
+    "balance": "Balance",
+    "income": "Income",
+    "expense": "Expenses"
+  },
+  "auth": {
+    "signIn": "Sign In",
+    "signOut": "Sign Out",
+    "email": "Email",
+    "password": "Password",
+    "forgotPassword": "Forgot password?"
+  },
+  "transactions": {
+    "title": "Transactions",
+    "date": "Date",
+    "month": "Month",
+    "type": "Type",
+    "amount": "Amount",
+    "description": "Description",
+    "account": "Account",
+    "addTransaction": "New Transaction"
+  },
+  "meals": {
+    "title": "Meals",
+    "withSoup": "With Soup",
+    "withoutSoup": "Without Soup",
+    "schoolCost": "School Cost",
+    "parentPrice": "Parent Price",
+    "markup": "Markup (%)",
+    "addMeal": "Record Meal",
+    "billing": "Monthly Billing"
+  },
+  "budget": {
+    "title": "Budget",
+    "planned": "Planned",
+    "actual": "Actual",
+    "variance": "Variance",
+    "copyFromYear": "Copy from previous year"
+  },
+  "categories": {
+    "title": "Categories",
+    "namePt": "Name (PT)",
+    "nameEn": "Name (EN)",
+    "classification": "Classification",
+    "group": "Group",
+    "description": "Description",
+    "active": "Active",
+    "receita": "Income",
+    "despesa": "Expense"
+  }
+}

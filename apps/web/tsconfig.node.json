@@ -1,0 +1,5 @@
+{
+  "extends": "@fin-tribe/tsconfig/node.json",
+  "compilerOptions": { "composite": true },
+  "include": ["vite.config.ts"]
+}
