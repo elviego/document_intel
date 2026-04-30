@@ -15,7 +15,6 @@
   },
   "dependencies": {
     "@fin-tribe/shared-types": "workspace:*",
-    "@supabase/supabase-js": "^2.47.2",
     "@tanstack/react-query": "^5.62.2",
     "@tanstack/react-query-devtools": "^5.62.2",
     "i18next": "^24.0.5",

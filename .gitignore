@@ -16,10 +16,6 @@ out/
 .env.local
 .env.*.local
 
-# Supabase local
-supabase/.branches/
-supabase/.temp/
-
 # Editor
 .vscode/settings.json
 .idea/

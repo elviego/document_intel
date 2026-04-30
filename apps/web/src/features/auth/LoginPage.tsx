@@ -1,24 +1,16 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 
 export default function LoginPage() {
   const { t } = useTranslation()
-  const navigate = useNavigate()
+  const { login, loading, error } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
-  const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
-    setError(null)
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) { setError(error.message); return }
-    navigate('/dashboard')
+    await login(email, password)
   }
 
   return (

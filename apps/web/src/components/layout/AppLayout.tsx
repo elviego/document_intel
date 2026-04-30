@@ -1,6 +1,6 @@
-import { Outlet, NavLink, useNavigate } from 'react-router-dom'
+import { Outlet, NavLink } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
-import { supabase } from '@/lib/supabase'
+import { useAuth } from '@/hooks/useAuth'
 import clsx from 'clsx'
 
 const navItems = [
@@ -21,12 +21,7 @@ const adminItems = [
 
 export function AppLayout() {
   const { t, i18n } = useTranslation()
-  const navigate = useNavigate()
-
-  async function handleSignOut() {
-    await supabase.auth.signOut()
-    navigate('/auth/login')
-  }
+  const { logout, user } = useAuth()
 
   function toggleLang() {
     const next = i18n.language === 'pt' ? 'en' : 'pt'
@@ -58,27 +53,33 @@ export function AppLayout() {
             </NavLink>
           ))}
 
-          <div className="pt-4 pb-1 px-3">
-            <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Admin</span>
-          </div>
-
-          {adminItems.map(({ to, key }) => (
-            <NavLink
-              key={to}
-              to={to}
-              className={({ isActive }) =>
-                clsx('flex items-center px-3 py-2 text-sm rounded-md font-medium transition-colors', {
-                  'bg-brand-50 text-brand-700': isActive,
-                  'text-gray-600 hover:bg-gray-50 hover:text-gray-900': !isActive,
-                })
-              }
-            >
-              {t(`nav.${key}`)}
-            </NavLink>
-          ))}
+          {user?.role === 'admin' && (
+            <>
+              <div className="pt-4 pb-1 px-3">
+                <span className="text-xs font-semibold uppercase tracking-wider text-gray-400">Admin</span>
+              </div>
+              {adminItems.map(({ to, key }) => (
+                <NavLink
+                  key={to}
+                  to={to}
+                  className={({ isActive }) =>
+                    clsx('flex items-center px-3 py-2 text-sm rounded-md font-medium transition-colors', {
+                      'bg-brand-50 text-brand-700': isActive,
+                      'text-gray-600 hover:bg-gray-50 hover:text-gray-900': !isActive,
+                    })
+                  }
+                >
+                  {t(`nav.${key}`)}
+                </NavLink>
+              ))}
+            </>
+          )}
         </nav>
 
         <div className="p-3 border-t border-gray-200 space-y-1">
+          {user && (
+            <p className="px-3 py-1 text-xs text-gray-400 truncate">{user.fullName}</p>
+          )}
           <button
             onClick={toggleLang}
             className="w-full text-left px-3 py-2 text-xs text-gray-500 hover:text-gray-700 rounded-md hover:bg-gray-50"
@@ -86,7 +87,7 @@ export function AppLayout() {
             {i18n.language === 'pt' ? '🇬🇧 English' : '🇵🇹 Português'}
           </button>
           <button
-            onClick={handleSignOut}
+            onClick={logout}
             className="w-full text-left px-3 py-2 text-sm text-gray-600 hover:text-red-600 rounded-md hover:bg-red-50"
           >
             {t('auth.signOut')}

@@ -13,8 +13,9 @@ Financial management platform for Tribo Verde school. Tracks income, expenses, s
 | i18n | react-i18next (PT / EN) |
 | Backend | Node.js · Fastify · TypeScript |
 | ORM | Drizzle ORM |
-| Database | Supabase (PostgreSQL) |
-| Auth | Supabase Auth (email invite) |
+| Database | PostgreSQL on Railway |
+| Auth | Custom JWT (bcryptjs + Resend) |
+| Email | Resend |
 | Monorepo | Turborepo · pnpm workspaces |
 | CI/CD | GitHub Actions → Vercel (web) · Railway (api) |
 
@@ -28,22 +29,29 @@ fin-tribe/
 │   ├── web/                  # React frontend (port 3000)
 │   │   └── src/
 │   │       ├── features/     # One folder per module
-│   │       ├── components/   # Shared UI
-│   │       ├── lib/          # API client, i18n, Supabase, React Query
+│   │       ├── components/   # Shared UI (layout, etc.)
+│   │       ├── hooks/        # useAuth and other shared hooks
+│   │       ├── lib/          # api-client, auth, i18n, React Query
 │   │       ├── locales/      # pt.json · en.json
 │   │       └── router/       # Route definitions
 │   └── api/                  # Fastify REST API (port 4000)
+│       ├── drizzle.config.ts
 │       └── src/
 │           ├── domain/       # Entities · repository interfaces · domain services
-│           ├── application/  # Use-cases (one file each)
-│           ├── infrastructure/  # DB · HTTP routes · auth middleware
-│           └── shared/       # Env · logger · errors
+│           ├── application/  # Use-cases: Login, InviteUser, AcceptInvite,
+│           │                 #   ImportTransactions, ExportTransactions, CopyBudget…
+│           ├── infrastructure/
+│           │   ├── db/       # Drizzle schema + client
+│           │   ├── email/    # IEmailService + ResendEmailService
+│           │   ├── repositories/  # Concrete DB implementations
+│           │   └── http/     # Fastify app, routes, auth middleware
+│           └── shared/       # Env (Zod) · logger · typed errors
 ├── packages/
 │   ├── shared-types/         # DTOs shared between web and api
 │   ├── eslint-config/        # Shared lint rules
 │   └── tsconfig/             # Shared TS configs (base · node · react)
-├── supabase/
-│   ├── migrations/           # Versioned SQL (run in order)
+├── db/
+│   ├── migrations/           # Plain SQL migrations (run with drizzle-kit)
 │   └── seed/                 # Category seed · school year seed
 ├── docs/
 │   └── adr/                  # Architecture Decision Records
@@ -75,57 +83,63 @@ fin-tribe/
 
 - Node.js ≥ 20
 - pnpm ≥ 9 (`npm install -g pnpm`)
-- Supabase CLI (`brew install supabase/tap/supabase`)
+- A [Railway](https://railway.app) account (free tier)
+- A [Resend](https://resend.com) account (free tier — 3 000 emails/month)
+- A [Vercel](https://vercel.com) account (free tier, for web deployment)
 
-### 1 — Install dependencies
+### 1 — Clone and install
 
 ```bash
+git clone <repo-url> fin-tribe
+cd fin-tribe
 pnpm install
 ```
 
-### 2 — Configure environment
+### 2 — Provision Railway PostgreSQL
+
+1. Create a new Railway project
+2. Add a **PostgreSQL** service
+3. Copy the `DATABASE_URL` from the Railway dashboard
+
+### 3 — Configure environment
 
 ```bash
-# apps/api/.env
 cp apps/api/.env.example apps/api/.env
-
-# apps/web/.env.local
 cp apps/web/.env.example apps/web/.env.local
 ```
 
 **`apps/api/.env`**
-```
-DATABASE_URL=postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
-SUPABASE_URL=https://[ref].supabase.co
-SUPABASE_SERVICE_KEY=[service-role-key]
-JWT_SECRET=[supabase-jwt-secret]
+```env
+DATABASE_URL=postgresql://postgres:[password]@[host].railway.app:5432/railway
+JWT_SECRET=<openssl rand -hex 32>
+RESEND_API_KEY=re_...
+EMAIL_FROM=noreply@triboverde.pt
 CORS_ORIGIN=http://localhost:3000
-PORT=4000
+APP_URL=http://localhost:3000
 ```
 
 **`apps/web/.env.local`**
-```
-VITE_SUPABASE_URL=https://[ref].supabase.co
-VITE_SUPABASE_ANON_KEY=[anon-key]
+```env
 VITE_API_URL=http://localhost:4000
 ```
 
-### 3 — Set up the database
+### 4 — Run migrations and seed
 
 ```bash
-# Push migrations and seed
-supabase db push
+# Apply schema to Railway PostgreSQL
+pnpm db:migrate
+
+# Seed categories, bank accounts, and school year 2025-26
 pnpm db:seed
 ```
 
-### 4 — Run locally
+### 5 — Run locally
 
 ```bash
-pnpm dev          # starts both web (3000) and api (4000) via Turborepo
+pnpm dev          # starts web (3000) and api (4000) in parallel via Turborepo
 ```
 
 Or individually:
-
 ```bash
 pnpm --filter @fin-tribe/web dev
 pnpm --filter @fin-tribe/api dev
@@ -135,19 +149,32 @@ pnpm --filter @fin-tribe/api dev
 
 ## Database Migrations
 
-Migrations live in `supabase/migrations/` and are run in order by `supabase db push`.
-
-To create a new migration:
+Migrations live in `db/migrations/` and are managed with Drizzle Kit.
 
 ```bash
-supabase migration new <description>
-# Edit the generated file in supabase/migrations/
-supabase db push
+# Generate a new migration from schema changes
+pnpm db:generate
+
+# Apply pending migrations
+pnpm db:migrate
 ```
 
 ---
 
-## CSV Import
+## Auth Flow
+
+| Step | Endpoint | Actor |
+|---|---|---|
+| Invite user | `POST /v1/auth/invite` | Admin |
+| Accept invite + set password | `POST /v1/auth/accept-invite` | Invited user |
+| Login | `POST /v1/auth/login` | Any user |
+| Get current user | `GET /v1/auth/me` | Authenticated |
+
+Tokens are JWT, signed with `JWT_SECRET`, valid for 8 hours. The web client stores the token in `localStorage` and sends it as `Authorization: Bearer <token>`.
+
+---
+
+## CSV Import / Export
 
 The Movimentos CSV exported from Google Sheets can be imported via the Transactions module.
 
@@ -159,11 +186,11 @@ Amount format: `-€1.234,56` (European locale — parsed automatically).
 
 ## Architecture Decisions
 
-See [`docs/adr/`](docs/adr/) for the full set of ADRs:
+See [`docs/adr/`](docs/adr/):
 
 - [001 — Monorepo with Turborepo](docs/adr/001-monorepo-turborepo.md)
 - [002 — Clean Architecture in the API](docs/adr/002-clean-architecture-api.md)
-- [003 — Supabase Auth + Drizzle ORM](docs/adr/003-supabase-auth-drizzle.md)
+- [003 — Railway PostgreSQL + Custom JWT Auth](docs/adr/003-railway-custom-auth.md)
 - [004 — REST API over tRPC](docs/adr/004-rest-api.md)
 
 ---
@@ -176,13 +203,13 @@ See [`docs/adr/`](docs/adr/) for the full set of ADRs:
 | `staff` | Enter transactions and meals, read-only elsewhere |
 | `accountant` | Read-only + CSV export |
 
-Roles are enforced at two levels: Fastify middleware (`requireRole`) and Supabase Row Level Security policies.
+Roles are enforced by the Fastify `requireRole` middleware. Admin-only nav items are hidden in the sidebar for non-admin users.
 
 ---
 
 ## School Year Convention
 
-A school year runs **September 1 → August 31**. The year `2025-26` covers Sep 2025 – Aug 2026. When entering a transaction, the month label (`set.25`, `out.25`, …) is derived automatically from the date.
+A school year runs **September 1 → August 31**. The year `2025-26` covers Sep 2025 – Aug 2026. Month labels (`set.25`, `out.25`, …) are derived automatically from the transaction date.
 
 ---
 

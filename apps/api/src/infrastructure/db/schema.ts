@@ -1,5 +1,5 @@
 /**
- * Drizzle ORM schema — mirrors the Supabase PostgreSQL migrations exactly.
+ * Drizzle ORM schema — mirrors db/migrations exactly.
  * Source of truth for type-safe queries; never edit this without a matching migration.
  */
 import {
@@ -7,17 +7,23 @@ import {
 } from 'drizzle-orm/pg-core'
 
 // ─── Enums ──────────────────────────────────────────────────────────────────
-export const roleEnum          = pgEnum('role',           ['admin', 'staff', 'accountant'])
+export const roleEnum           = pgEnum('role',           ['admin', 'staff', 'accountant'])
 export const classificationEnum = pgEnum('classification', ['receita', 'despesa'])
-export const salaryTypeEnum    = pgEnum('salary_type',    ['contrato', 'rec_verdes', 'horas', 'terceiros'])
-export const mealTypeEnum      = pgEnum('meal_type',      ['com_sopa', 'sem_sopa'])
+export const salaryTypeEnum     = pgEnum('salary_type',    ['contrato', 'rec_verdes', 'horas', 'terceiros'])
+export const mealTypeEnum       = pgEnum('meal_type',      ['com_sopa', 'sem_sopa'])
 
 // ─── Tables ──────────────────────────────────────────────────────────────────
-export const profiles = pgTable('profiles', {
-  id:        uuid('id').primaryKey(),           // = auth.users.id
-  fullName:  text('full_name').notNull(),
-  role:      roleEnum('role').notNull().default('staff'),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+export const users = pgTable('users', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  email:            text('email').notNull().unique(),
+  passwordHash:     text('password_hash'),
+  fullName:         text('full_name').notNull().default(''),
+  role:             roleEnum('role').notNull().default('staff'),
+  inviteToken:      text('invite_token').unique(),
+  inviteExpiresAt:  timestamp('invite_expires_at'),
+  isActive:         boolean('is_active').notNull().default(false),
+  createdAt:        timestamp('created_at').defaultNow().notNull(),
+  updatedAt:        timestamp('updated_at').defaultNow().notNull(),
 })
 
 export const schoolYears = pgTable('school_years', {
@@ -56,7 +62,7 @@ export const transactions = pgTable('transactions', {
   monthLabel:    text('month_label').notNull(),         // "set.25"
   amount:        numeric('amount', { precision: 12, scale: 2 }).notNull(),
   description:   text('description').notNull().default(''),
-  createdBy:     uuid('created_by').notNull().references(() => profiles.id),
+  createdBy:     uuid('created_by').notNull().references(() => users.id),
   createdAt:     timestamp('created_at').defaultNow().notNull(),
 })
 
@@ -90,7 +96,7 @@ export const mealRecords = pgTable('meal_records', {
   date:      date('date').notNull(),
   mealType:  mealTypeEnum('meal_type').notNull(),
   billed:    boolean('billed').notNull().default(false),
-  createdBy: uuid('created_by').notNull().references(() => profiles.id),
+  createdBy: uuid('created_by').notNull().references(() => users.id),
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 

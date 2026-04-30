@@ -15,7 +15,8 @@
   },
   "dependencies": {
     "@fin-tribe/shared-types": "workspace:*",
-    "@supabase/supabase-js": "^2.47.2",
+    "bcryptjs": "^2.4.3",
+    "resend": "^4.0.1",
     "drizzle-orm": "^0.36.4",
     "fastify": "^5.1.0",
     "@fastify/cors": "^10.0.1",
@@ -32,6 +33,7 @@
   "devDependencies": {
     "@fin-tribe/eslint-config": "workspace:*",
     "@fin-tribe/tsconfig": "workspace:*",
+    "@types/bcryptjs": "^2.4.6",
     "drizzle-kit": "^0.28.1",
     "tsx": "^4.19.2",
     "vitest": "^2.1.6"
