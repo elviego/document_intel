@@ -13,12 +13,13 @@
   },
   "common": {
     "save": "Save",
+    "saved": "Saved",
     "cancel": "Cancel",
     "delete": "Delete",
     "edit": "Edit",
     "add": "Add",
     "export": "Export CSV",
-    "import": "Import CSV",
+    "import": "Import",
     "loading": "Loading...",
     "noData": "No data",
     "confirm": "Confirm",
@@ -27,7 +28,9 @@
     "total": "Total",
     "balance": "Balance",
     "income": "Income",
-    "expense": "Expenses"
+    "expense": "Expenses",
+    "active": "Active",
+    "inactive": "Inactive"
   },
   "auth": {
     "signIn": "Sign In",
@@ -46,32 +49,89 @@
     "account": "Account",
     "addTransaction": "New Transaction"
   },
+  "dashboard": {
+    "yearToDate": "Year to date",
+    "thisMonth": "This month",
+    "monthlyOverview": "Monthly Overview",
+    "topExpenses": "Top Expenses"
+  },
   "meals": {
     "title": "Meals",
+    "tabDaily": "Daily Log",
+    "tabBilling": "Billing",
+    "tabPricing": "Pricing",
+    "tabChildren": "Children",
     "withSoup": "With Soup",
     "withoutSoup": "Without Soup",
     "schoolCost": "School Cost",
-    "parentPrice": "Parent Price",
-    "markup": "Markup (%)",
-    "addMeal": "Record Meal",
-    "billing": "Monthly Billing"
+    "parentCharge": "Parent Charge",
+    "withSoupCost": "With Soup Cost (€)",
+    "withoutSoupCost": "Without Soup Cost (€)",
+    "markupPct": "Markup (%)",
+    "pricingHint": "Set the cost per meal and the markup applied to parents.",
+    "addChild": "Add Child",
+    "childName": "Child Name",
+    "tuitionType": "Tuition Type",
+    "billing": "Monthly Billing",
+    "markup": "Markup (%)"
   },
   "budget": {
     "title": "Budget",
     "planned": "Planned",
     "actual": "Actual",
     "variance": "Variance",
-    "copyFromYear": "Copy from previous year"
+    "copyFromPrev": "Copy from previous year",
+    "confirmCopy": "Copy budget from previous year? Existing values will be overwritten.",
+    "readOnly": "Only administrators can edit the budget."
   },
   "categories": {
     "title": "Categories",
+    "add": "New Category",
+    "edit": "Edit Category",
     "namePt": "Name (PT)",
     "nameEn": "Name (EN)",
+    "groupPt": "Group (PT)",
+    "groupEn": "Group (EN)",
     "classification": "Classification",
-    "group": "Group",
-    "description": "Description",
+    "descriptionPt": "Description (PT)",
+    "descriptionEn": "Description (EN)",
     "active": "Active",
     "receita": "Income",
     "despesa": "Expense"
+  },
+  "bankAccounts": {
+    "add": "New Account",
+    "edit": "Edit Account",
+    "name": "Account Name",
+    "empty": "No bank accounts registered."
+  },
+  "schoolYears": {
+    "add": "New School Year",
+    "name": "Name",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "empty": "No school years registered."
+  },
+  "salaries": {
+    "add": "New Salary",
+    "personName": "Name",
+    "type": "Type",
+    "serviceName": "Service",
+    "serviceNameHint": "Optional — for freelancers / third parties",
+    "month": "Month",
+    "baseAmount": "Base Amount (€)",
+    "actualAmount": "Actual Amount (€)",
+    "actualAmountHint": "Leave blank to use base amount",
+    "confirmDelete": "Delete this salary record?",
+    "empty": "No salary records for this period."
+  },
+  "users": {
+    "invite": "Invite User",
+    "sendInvite": "Send Invite",
+    "inviteSent": "Invite sent successfully.",
+    "fullName": "Full Name",
+    "email": "Email",
+    "role": "Role",
+    "empty": "No users registered."
   }
 }

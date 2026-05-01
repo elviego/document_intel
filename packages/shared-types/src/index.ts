@@ -6,6 +6,13 @@ export type Classification  = 'receita' | 'despesa'
 export type SalaryType      = 'contrato' | 'rec_verdes' | 'horas' | 'terceiros'
 export type MealType        = 'com_sopa' | 'sem_sopa'
 
+// ─── Bank Account ─────────────────────────────────────────────────────────────
+export interface BankAccount {
+  id: string
+  name: string
+  isActive: boolean
+}
+
 // ─── Pagination ──────────────────────────────────────────────────────────────
 export interface Paginated<T> {
   data: T[]
