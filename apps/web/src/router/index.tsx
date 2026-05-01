@@ -1,23 +1,27 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import { AppLayout } from '@/components/layout/AppLayout'
-import { AuthLayout } from '@/components/layout/AuthLayout'
-
-// Pages — lazy loaded per feature
 import { lazy, Suspense } from 'react'
+import { AppLayout }   from '@/components/layout/AppLayout'
+import { AuthLayout }  from '@/components/layout/AuthLayout'
+import { RequireAuth } from '@/components/auth/RequireAuth'
 
-const withSuspense = (Component: React.LazyExoticComponent<() => JSX.Element>) => (
-  <Suspense fallback={<div className="p-8 text-gray-400">Loading…</div>}>
-    <Component />
-  </Suspense>
+const Spinner = () => <div className="p-8 text-gray-400 text-sm">Loading…</div>
+const s = (C: React.LazyExoticComponent<() => JSX.Element>) => (
+  <Suspense fallback={<Spinner />}><C /></Suspense>
 )
 
-const LoginPage        = lazy(() => import('@/features/auth/LoginPage'))
+// Auth pages
+const LoginPage         = lazy(() => import('@/features/auth/LoginPage'))
+const AcceptInvitePage  = lazy(() => import('@/features/auth/AcceptInvitePage'))
+
+// App pages
 const DashboardPage    = lazy(() => import('@/features/dashboard/DashboardPage'))
 const TransactionsPage = lazy(() => import('@/features/transactions/TransactionsPage'))
 const SummaryPage      = lazy(() => import('@/features/summary/SummaryPage'))
 const SalariesPage     = lazy(() => import('@/features/salaries/SalariesPage'))
 const MealsPage        = lazy(() => import('@/features/meals/MealsPage'))
 const BudgetPage       = lazy(() => import('@/features/budget/BudgetPage'))
+
+// Admin pages
 const CategoriesPage   = lazy(() => import('@/features/categories/CategoriesPage'))
 const BankAccountsPage = lazy(() => import('@/features/bank-accounts/BankAccountsPage'))
 const SchoolYearsPage  = lazy(() => import('@/features/school-years/SchoolYearsPage'))
@@ -28,25 +32,26 @@ export const router = createBrowserRouter([
     path: '/auth',
     element: <AuthLayout />,
     children: [
-      { path: 'login', element: withSuspense(LoginPage) },
+      { path: 'login',          element: s(LoginPage) },
+      { path: 'accept-invite',  element: s(AcceptInvitePage) },
     ],
   },
   {
     path: '/',
-    element: <AppLayout />,
+    element: <RequireAuth><AppLayout /></RequireAuth>,
     children: [
-      { index: true, element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard',    element: withSuspense(DashboardPage) },
-      { path: 'transactions', element: withSuspense(TransactionsPage) },
-      { path: 'summary',      element: withSuspense(SummaryPage) },
-      { path: 'salaries',     element: withSuspense(SalariesPage) },
-      { path: 'meals',        element: withSuspense(MealsPage) },
-      { path: 'budget',       element: withSuspense(BudgetPage) },
-      // Admin only
-      { path: 'categories',   element: withSuspense(CategoriesPage) },
-      { path: 'bank-accounts',element: withSuspense(BankAccountsPage) },
-      { path: 'school-years', element: withSuspense(SchoolYearsPage) },
-      { path: 'users',        element: withSuspense(UsersPage) },
+      { index: true,            element: <Navigate to="/dashboard" replace /> },
+      { path: 'dashboard',      element: s(DashboardPage) },
+      { path: 'transactions',   element: s(TransactionsPage) },
+      { path: 'summary',        element: s(SummaryPage) },
+      { path: 'salaries',       element: <RequireAuth role="admin">{s(SalariesPage)}</RequireAuth> },
+      { path: 'meals',          element: s(MealsPage) },
+      { path: 'budget',         element: s(BudgetPage) },
+      // Admin-only
+      { path: 'categories',     element: <RequireAuth role="admin">{s(CategoriesPage)}</RequireAuth> },
+      { path: 'bank-accounts',  element: <RequireAuth role="admin">{s(BankAccountsPage)}</RequireAuth> },
+      { path: 'school-years',   element: <RequireAuth role="admin">{s(SchoolYearsPage)}</RequireAuth> },
+      { path: 'users',          element: <RequireAuth role="admin">{s(UsersPage)}</RequireAuth> },
     ],
   },
   { path: '*', element: <Navigate to="/dashboard" replace /> },

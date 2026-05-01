@@ -1,10 +1,26 @@
 import type { FastifyPluginAsync } from 'fastify'
+import { z } from 'zod'
+import { db } from '../../db/client'
+import { BankAccountRepository } from '../../repositories/BankAccountRepository'
 import { requireAuth, requireRole } from '../middleware/auth'
 
-// TODO: inject repository/use-case dependencies via plugin options or DI container
-export const bankUaccountsRoutes: FastifyPluginAsync = async (app) => {
-  // GET list
+const repo = new BankAccountRepository(db)
+
+export const bankAccountRoutes: FastifyPluginAsync = async (app) => {
+
   app.get('/', { preHandler: [requireAuth] }, async (req, reply) => {
-    return reply.send([])
+    const { includeInactive } = z.object({ includeInactive: z.coerce.boolean().default(false) }).parse(req.query)
+    return reply.send(await repo.findAll(includeInactive))
+  })
+
+  app.post('/', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const { name } = z.object({ name: z.string().min(1) }).parse(req.body)
+    return reply.status(201).send(await repo.create(name))
+  })
+
+  app.patch('/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    const body   = z.object({ name: z.string().optional(), isActive: z.boolean().optional() }).parse(req.body)
+    return reply.send(await repo.update(id, body))
   })
 }
