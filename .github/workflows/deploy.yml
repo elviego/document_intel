@@ -1,26 +1,20 @@
-# Railway and Vercel both auto-deploy on push to main via their native GitHub
-# integrations — no workflow needed here. This file is intentionally minimal.
-#
-# To configure native integrations:
-#   Railway: railway.app → project → Settings → Source → connect GitHub repo
-#   Vercel:  vercel.com  → project → Settings → Git → connect GitHub repo
-#
-# If you ever need to trigger a Railway redeploy manually:
-#   railway redeploy --service api
-#
-# Required repo secrets (if switching to CLI-based deploys):
-#   RAILWAY_TOKEN     — from railway.app → Account Settings → Tokens
-#   VERCEL_TOKEN      — from vercel.com  → Account Settings → Tokens
-#   VERCEL_ORG_ID     — from vercel.com  → Account Settings (slug)
-#   VERCEL_PROJECT_ID — from vercel.com  → Project Settings → General
-
-name: Deploy (native integrations handle this)
+name: Deploy
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [main]
 
 jobs:
-  noop:
+  deploy-api:
+    name: Deploy API → Railway
     runs-on: ubuntu-latest
     steps:
-      - run: echo "Deploys are handled by Railway and Vercel native GitHub integrations."
+      - uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        run: railway up --service api --detach
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
