@@ -1,13 +1,12 @@
 import { buildApp } from './infrastructure/http/app.js'
 import { env } from './shared/env.js'
-import { logger } from './shared/logger.js'
 
 const server = await buildApp()
 
 try {
   await server.listen({ port: env.PORT, host: '0.0.0.0' })
-  logger.info(`API running on port ${env.PORT}`)
+  server.log.info({ port: env.PORT }, 'API listening')
 } catch (err) {
-  logger.error(err)
+  server.log.error(err, 'Failed to start server')
   process.exit(1)
 }

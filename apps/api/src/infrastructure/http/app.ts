@@ -15,7 +15,17 @@ import { bankAccountRoutes } from './routes/bank-accounts.js'
 import { authRoutes } from './routes/auth.js'
 
 export async function buildApp() {
-  const app = Fastify({ logger: true })
+  const app = Fastify({
+    logger: {
+      level: 'info',
+      serializers: {
+        req: (req) => ({ method: req.method, url: req.url, ip: req.ip }),
+        res: (res) => ({ statusCode: res.statusCode }),
+      },
+    },
+    disableRequestLogging: false,
+    genReqId: () => Math.random().toString(36).slice(2, 9),
+  })
 
   await app.register(cors, { origin: env.CORS_ORIGIN, credentials: true })
   await app.register(jwt, { secret: env.JWT_SECRET })
@@ -30,7 +40,8 @@ export async function buildApp() {
     return reply.status(500).send({ error: 'Internal server error' })
   })
 
-  app.get('/health', async () => ({ status: 'ok', ts: new Date().toISOString() }))
+  // silence healthcheck polling from Railway
+  app.get('/health', { logLevel: 'silent' }, async () => ({ status: 'ok', ts: new Date().toISOString() }))
 
   // Route groups — all under /v1
   await app.register(transactionRoutes,  { prefix: '/v1/transactions' })
