@@ -89,6 +89,9 @@ function AddTransactionModal({
           value={form.amount} onChange={set('amount')} />
         <Input label={t('transactions.description')} value={form.description} onChange={set('description')} />
 
+        {!schoolYearId && (
+          <p className="text-sm text-amber-600">No school year found. Create one first in School Years settings.</p>
+        )}
         {mutation.isError && (
           <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>
         )}
@@ -98,7 +101,7 @@ function AddTransactionModal({
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button
           onClick={() => mutation.mutate()}
-          disabled={mutation.isPending || !form.categoryId || !form.bankAccountId || !form.amount}
+          disabled={mutation.isPending || !form.categoryId || !form.bankAccountId || !form.amount || !schoolYearId}
         >
           {mutation.isPending ? t('common.loading') : t('common.save')}
         </Button>
@@ -252,7 +255,7 @@ export default function TransactionsPage() {
         )}
       </div>
 
-      {showAdd && currentYear && (
+      {showAdd && (
         <AddTransactionModal
           open={showAdd} onClose={() => setShowAdd(false)}
           schoolYearId={schoolYearId}
