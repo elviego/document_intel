@@ -3,7 +3,7 @@ builder = "NIXPACKS"
 buildCommand = "pnpm install --frozen-lockfile && pnpm turbo build --filter=@fin-tribe/api..."
 
 [deploy]
-startCommand = "node apps/api/dist/migrate.js && node apps/api/dist/main.js"
+startCommand = "node apps/api/dist/migrate.js; node apps/api/dist/main.js"
 healthcheckPath = "/health"
 healthcheckTimeout = 100
 restartPolicyType = "ON_FAILURE"

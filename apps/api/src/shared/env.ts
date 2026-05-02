@@ -7,7 +7,7 @@ const schema = z.object({
   JWT_SECRET:     z.string().min(32),
   CORS_ORIGIN:    z.string().default('http://localhost:3000'),
   APP_URL:        z.string().url().default('http://localhost:3000'),
-  RESEND_API_KEY: z.string().min(1),
+  RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM:     z.string().default('noreply@triboverde.pt'),
 })
 
