@@ -29,8 +29,16 @@ export async function buildApp() {
     genReqId: () => Math.random().toString(36).slice(2, 9),
   })
 
-  app.log.info({ corsOrigin: env.CORS_ORIGIN }, 'CORS config')
-  await app.register(cors, { origin: env.CORS_ORIGIN, credentials: true })
+  app.log.info({ corsOrigins: env.CORS_ORIGIN }, 'CORS config')
+  await app.register(cors, {
+    credentials: true,
+    origin: (origin, cb) => {
+      if (!origin) return cb(null, true)  // non-browser / same-origin requests
+      if (env.CORS_ORIGIN.includes(origin)) return cb(null, true)
+      app.log.warn({ origin, allowed: env.CORS_ORIGIN }, 'CORS rejected')
+      cb(new Error(`Origin not allowed: ${origin}`), false)
+    },
+  })
   await app.register(jwt, { secret: env.JWT_SECRET })
   await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } })
   await app.register(rateLimit, { max: 200, timeWindow: '1 minute' })
