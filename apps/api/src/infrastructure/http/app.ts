@@ -33,8 +33,8 @@ export async function buildApp() {
   await app.register(cors, {
     credentials: true,
     origin: (origin, cb) => {
-      if (!origin) return cb(null, true)  // non-browser / same-origin requests
-      if (env.CORS_ORIGIN.includes(origin)) return cb(null, true)
+      if (!origin) return cb(null, true)
+      if (env.CORS_ORIGIN.includes(origin)) return cb(null, origin)  // echo back the exact origin
       app.log.warn({ origin, allowed: env.CORS_ORIGIN }, 'CORS rejected')
       cb(new Error(`Origin not allowed: ${origin}`), false)
     },
