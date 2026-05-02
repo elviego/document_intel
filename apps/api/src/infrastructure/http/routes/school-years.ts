@@ -14,7 +14,7 @@ export const schoolYearRoutes: FastifyPluginAsync = async (app) => {
 
   app.post('/', { preHandler: [requireRole('admin')] }, async (req, reply) => {
     const body = z.object({
-      name:      z.string().regex(/^\d{4}-\d{2}$/),
+      name:      z.string().min(1),
       startDate: z.string(),
       endDate:   z.string(),
     }).parse(req.body)

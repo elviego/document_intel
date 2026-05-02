@@ -32,7 +32,7 @@ function AddSchoolYearModal({ open, onClose }: { open: boolean; onClose: () => v
     <Modal open={open} onClose={onClose} title={t('schoolYears.add')}>
       <div className="space-y-3">
         <Input label={t('schoolYears.name')} value={form.name} onChange={set('name')}
-          placeholder="ex: 2026-27" />
+          placeholder="ex: 2025-2026" />
         <Input label={t('schoolYears.startDate')} type="date" value={form.startDate} onChange={set('startDate')} />
         <Input label={t('schoolYears.endDate')}   type="date" value={form.endDate}   onChange={set('endDate')} />
         {mutation.isError && <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>}
