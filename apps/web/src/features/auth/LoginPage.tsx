@@ -29,7 +29,12 @@ export default function LoginPage() {
           className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
         />
       </div>
-      {error && <p className="text-sm text-red-600">{error}</p>}
+      {error && (
+        <div className="rounded-md bg-red-50 border border-red-200 p-3">
+          <p className="text-sm text-red-700 font-medium">Login failed</p>
+          <p className="text-xs text-red-600 mt-1 break-all">{error}</p>
+        </div>
+      )}
       <button
         type="submit" disabled={loading}
         className="w-full bg-brand-600 hover:bg-brand-700 text-white font-medium py-2 rounded-lg text-sm transition-colors disabled:opacity-50"
