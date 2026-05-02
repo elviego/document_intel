@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
+import { ImportModal } from './ImportModal'
 import type { TransactionDTO, CategoryDTO } from '@fin-tribe/shared-types'
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
@@ -128,7 +129,8 @@ export default function TransactionsPage() {
     monthLabel: '',
     search: '',
   })
-  const [showAdd, setShowAdd] = useState(false)
+  const [showAdd, setShowAdd]       = useState(false)
+  const [showImport, setShowImport] = useState(false)
 
   const schoolYearId = filters.schoolYearId || currentYear?.id || ''
   const { data: transactions = [], isLoading } = useTransactions({ ...filters, schoolYearId })
@@ -165,6 +167,11 @@ export default function TransactionsPage() {
             {isAdmin && (
               <Button variant="secondary" size="sm" onClick={handleExport}>
                 ↓ {t('common.export')}
+              </Button>
+            )}
+            {isAdmin && (
+              <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+                ↑ Import Excel
               </Button>
             )}
             {(isAdmin || user?.role === 'staff') && (
@@ -261,6 +268,13 @@ export default function TransactionsPage() {
           schoolYearId={schoolYearId}
           categories={categories}
           bankAccounts={bankAccounts}
+        />
+      )}
+
+      {showImport && (
+        <ImportModal
+          open={showImport} onClose={() => setShowImport(false)}
+          schoolYearId={schoolYearId}
         />
       )}
     </div>

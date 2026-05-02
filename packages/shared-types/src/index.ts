@@ -134,6 +134,38 @@ export interface SalaryEntryDTO {
   linkedTransactionId: string | null
 }
 
+// ─── Import ──────────────────────────────────────────────────────────────────
+export interface ImportRowDTO {
+  rowIndex: number
+  date: string           // YYYY-MM-DD
+  categoryName: string
+  bankAccountName: string
+  amount: number
+  description: string
+}
+
+export interface ImportPreviewDTO {
+  rows: ImportRowDTO[]
+  unknownCategories: string[]   // category names not found in DB
+  unknownAccounts: string[]     // account names not found in DB
+  parseErrors: string[]         // rows that could not be parsed
+}
+
+export interface NewCategoryInput {
+  namePt: string
+  nameEn: string
+  classification: Classification
+  groupPt: string
+  groupEn: string
+  descriptionPt?: string
+}
+
+export interface ImportConfirmPayload {
+  schoolYearId: string
+  rows: ImportRowDTO[]
+  newCategories: NewCategoryInput[]
+}
+
 // ─── API responses ───────────────────────────────────────────────────────────
 export interface ApiError {
   error: string

@@ -1,6 +1,7 @@
 import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
+import multipart from '@fastify/multipart'
 import rateLimit from '@fastify/rate-limit'
 import { ZodError } from 'zod'
 import { env } from '../../shared/env.js'
@@ -31,6 +32,7 @@ export async function buildApp() {
   app.log.info({ corsOrigin: env.CORS_ORIGIN }, 'CORS config')
   await app.register(cors, { origin: env.CORS_ORIGIN, credentials: true })
   await app.register(jwt, { secret: env.JWT_SECRET })
+  await app.register(multipart, { limits: { fileSize: 10 * 1024 * 1024 } })
   await app.register(rateLimit, { max: 200, timeWindow: '1 minute' })
 
   // Global error handler
