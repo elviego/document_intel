@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { db } from '../../db/client'
-import { CategoryRepository } from '../../repositories/CategoryRepository'
-import { requireAuth, requireRole } from '../middleware/auth'
+import { db } from '../../db/client.js'
+import { CategoryRepository } from '../../repositories/CategoryRepository.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 
 const repo = new CategoryRepository(db)
 

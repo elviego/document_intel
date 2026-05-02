@@ -1,8 +1,8 @@
 import { eq, and, gte, lte } from 'drizzle-orm'
-import type { DB } from '../db/client'
-import { mealRecords, mealPricing, children } from '../db/schema'
-import type { IMealRepository } from '../../domain/repositories/IMealRepository'
-import type { MealRecord, MealPricing, Child } from '../../domain/entities/MealRecord'
+import type { DB } from '../db/client.js'
+import { mealRecords, mealPricing, children } from '../db/schema.js'
+import type { IMealRepository } from '../../domain/repositories/IMealRepository.js'
+import type { MealRecord, MealPricing, Child } from '../../domain/entities/MealRecord.js'
 
 export class MealRepository implements IMealRepository {
   constructor(private readonly db: DB) {}

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
-import type { IUserRepository, UserRole } from '../../../domain/entities/User'
-import type { IEmailService } from '../../../infrastructure/email/IEmailService'
-import { AppError } from '../../../shared/errors'
+import type { IUserRepository, UserRole } from '../../../domain/entities/User.js'
+import type { IEmailService } from '../../../infrastructure/email/IEmailService.js'
+import { AppError } from '../../../shared/errors.js'
 
 interface InviteUserInput {
   email: string

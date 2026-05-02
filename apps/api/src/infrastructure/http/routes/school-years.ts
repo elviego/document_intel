@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { db } from '../../db/client'
-import { SchoolYearRepository } from '../../repositories/SchoolYearRepository'
-import { requireAuth, requireRole } from '../middleware/auth'
+import { db } from '../../db/client.js'
+import { SchoolYearRepository } from '../../repositories/SchoolYearRepository.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 
 const repo = new SchoolYearRepository(db)
 

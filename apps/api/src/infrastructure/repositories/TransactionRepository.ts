@@ -1,11 +1,11 @@
 import { eq, and, gte, lte, ilike, sql } from 'drizzle-orm'
-import type { DB } from '../db/client'
-import { transactions, categories, bankAccounts } from '../db/schema'
+import type { DB } from '../db/client.js'
+import { transactions, categories, bankAccounts } from '../db/schema.js'
 import type {
   ITransactionRepository, TransactionFilters, MonthlyCategorySummary,
-} from '../../domain/repositories/ITransactionRepository'
-import type { Transaction, CreateTransactionInput, TransactionId } from '../../domain/entities/Transaction'
-import { monthLabel } from '../../domain/entities/SchoolYear'
+} from '../../domain/repositories/ITransactionRepository.js'
+import type { Transaction, CreateTransactionInput, TransactionId } from '../../domain/entities/Transaction.js'
+import { monthLabel } from '../../domain/entities/SchoolYear.js'
 
 export class TransactionRepository implements ITransactionRepository {
   constructor(private readonly db: DB) {}

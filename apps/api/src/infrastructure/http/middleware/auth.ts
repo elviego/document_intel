@@ -1,5 +1,5 @@
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import { UnauthorizedError, ForbiddenError } from '../../../shared/errors'
+import { UnauthorizedError, ForbiddenError } from '../../../shared/errors.js'
 
 export type Role = 'admin' | 'staff' | 'accountant'
 

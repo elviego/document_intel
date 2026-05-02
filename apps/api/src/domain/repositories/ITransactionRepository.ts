@@ -1,4 +1,4 @@
-import type { Transaction, CreateTransactionInput, TransactionId } from '../entities/Transaction'
+import type { Transaction, CreateTransactionInput, TransactionId } from '../entities/Transaction.js'
 
 export interface TransactionFilters {
   schoolYearId?: string

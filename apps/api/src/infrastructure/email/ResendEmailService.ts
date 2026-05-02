@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
-import { env } from '../../shared/env'
-import type { IEmailService, SendInviteParams, SendPasswordResetParams } from './IEmailService'
+import { env } from '../../shared/env.js'
+import type { IEmailService, SendInviteParams, SendPasswordResetParams } from './IEmailService.js'
 
 export class ResendEmailService implements IEmailService {
   private readonly client = new Resend(env.RESEND_API_KEY)

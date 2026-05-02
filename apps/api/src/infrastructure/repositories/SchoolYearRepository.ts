@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
-import type { DB } from '../db/client'
-import { schoolYears } from '../db/schema'
-import type { SchoolYear, SchoolYearId } from '../../domain/entities/SchoolYear'
+import type { DB } from '../db/client.js'
+import { schoolYears } from '../db/schema.js'
+import type { SchoolYear, SchoolYearId } from '../../domain/entities/SchoolYear.js'
 
 export interface ISchoolYearRepository {
   findAll(): Promise<SchoolYear[]>

@@ -1,6 +1,6 @@
-import { buildApp } from './infrastructure/http/app'
-import { env } from './shared/env'
-import { logger } from './shared/logger'
+import { buildApp } from './infrastructure/http/app.js'
+import { env } from './shared/env.js'
+import { logger } from './shared/logger.js'
 
 const server = await buildApp()
 

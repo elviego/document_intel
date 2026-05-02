@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm'
-import type { DB } from '../db/client'
-import { salaryEntries } from '../db/schema'
-import type { SalaryEntry } from '../../domain/entities/SalaryEntry'
+import type { DB } from '../db/client.js'
+import { salaryEntries } from '../db/schema.js'
+import type { SalaryEntry } from '../../domain/entities/SalaryEntry.js'
 
 export interface ISalaryRepository {
   findByYear(schoolYearId: string): Promise<SalaryEntry[]>

@@ -1,6 +1,6 @@
 import { stringify } from 'csv-stringify/sync'
-import type { ITransactionRepository, TransactionFilters } from '../../../domain/repositories/ITransactionRepository'
-import { monthLabel } from '../../../domain/entities/SchoolYear'
+import type { ITransactionRepository, TransactionFilters } from '../../../domain/repositories/ITransactionRepository.js'
+import { monthLabel } from '../../../domain/entities/SchoolYear.js'
 
 export class ExportTransactions {
   constructor(private readonly transactions: ITransactionRepository) {}

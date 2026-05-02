@@ -1,8 +1,8 @@
 import { parse } from 'csv-parse/sync'
-import type { ITransactionRepository } from '../../../domain/repositories/ITransactionRepository'
-import type { ICategoryRepository } from '../../../domain/repositories/ICategoryRepository'
-import { monthLabel } from '../../../domain/entities/SchoolYear'
-import { ValidationError } from '../../../shared/errors'
+import type { ITransactionRepository } from '../../../domain/repositories/ITransactionRepository.js'
+import type { ICategoryRepository } from '../../../domain/repositories/ICategoryRepository.js'
+import { monthLabel } from '../../../domain/entities/SchoolYear.js'
+import { ValidationError } from '../../../shared/errors.js'
 
 interface RawRow {
   Data: string

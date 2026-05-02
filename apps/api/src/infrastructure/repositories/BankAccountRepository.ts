@@ -1,6 +1,6 @@
 import { eq } from 'drizzle-orm'
-import type { DB } from '../db/client'
-import { bankAccounts } from '../db/schema'
+import type { DB } from '../db/client.js'
+import { bankAccounts } from '../db/schema.js'
 
 export interface BankAccount { id: string; name: string; isActive: boolean }
 

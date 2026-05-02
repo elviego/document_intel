@@ -1,9 +1,9 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { db } from '../../db/client'
-import { MealRepository }     from '../../repositories/MealRepository'
-import { MealBillingService } from '../../../domain/services/MealBillingService'
-import { requireAuth, requireRole } from '../middleware/auth'
+import { db } from '../../db/client.js'
+import { MealRepository }     from '../../repositories/MealRepository.js'
+import { MealBillingService } from '../../../domain/services/MealBillingService.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 
 const repo    = new MealRepository(db)
 const billing = new MealBillingService()

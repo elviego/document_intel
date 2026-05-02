@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
-import type { DB } from '../db/client'
-import { categories } from '../db/schema'
-import type { ICategoryRepository } from '../../domain/repositories/ICategoryRepository'
-import type { Category, CategoryId, CreateCategoryInput } from '../../domain/entities/Category'
+import type { DB } from '../db/client.js'
+import { categories } from '../db/schema.js'
+import type { ICategoryRepository } from '../../domain/repositories/ICategoryRepository.js'
+import type { Category, CategoryId, CreateCategoryInput } from '../../domain/entities/Category.js'
 
 export class CategoryRepository implements ICategoryRepository {
   constructor(private readonly db: DB) {}

@@ -1,11 +1,11 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { db } from '../../db/client'
-import { SalaryRepository }      from '../../repositories/SalaryRepository'
-import { TransactionRepository } from '../../repositories/TransactionRepository'
-import { CategoryRepository }    from '../../repositories/CategoryRepository'
-import { BankAccountRepository } from '../../repositories/BankAccountRepository'
-import { requireRole } from '../middleware/auth'
+import { db } from '../../db/client.js'
+import { SalaryRepository }      from '../../repositories/SalaryRepository.js'
+import { TransactionRepository } from '../../repositories/TransactionRepository.js'
+import { CategoryRepository }    from '../../repositories/CategoryRepository.js'
+import { BankAccountRepository } from '../../repositories/BankAccountRepository.js'
+import { requireRole } from '../middleware/auth.js'
 
 const salaryRepo = new SalaryRepository(db)
 const txRepo     = new TransactionRepository(db)

@@ -1,5 +1,5 @@
-import type { MealRecord, MealPricing } from '../entities/MealRecord'
-import type { ChildMonthlyBilling } from '../repositories/IMealRepository'
+import type { MealRecord, MealPricing } from '../entities/MealRecord.js'
+import type { ChildMonthlyBilling } from '../repositories/IMealRepository.js'
 
 /**
  * Pure domain service — no I/O, no framework dependencies.

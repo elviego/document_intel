@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
-import type { DB } from '../db/client'
-import { users } from '../db/schema'
-import type { IUserRepository, User, CreateUserInput, UpdateUserInput, UserId } from '../../domain/entities/User'
+import type { DB } from '../db/client.js'
+import { users } from '../db/schema.js'
+import type { IUserRepository, User, CreateUserInput, UpdateUserInput, UserId } from '../../domain/entities/User.js'
 
 export class UserRepository implements IUserRepository {
   constructor(private readonly db: DB) {}

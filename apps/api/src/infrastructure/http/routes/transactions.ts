@@ -1,12 +1,12 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { db } from '../../db/client'
-import { TransactionRepository }  from '../../repositories/TransactionRepository'
-import { CategoryRepository }     from '../../repositories/CategoryRepository'
-import { BankAccountRepository }  from '../../repositories/BankAccountRepository'
-import { ImportTransactions }     from '../../../application/use-cases/transactions/ImportTransactions'
-import { ExportTransactions }     from '../../../application/use-cases/transactions/ExportTransactions'
-import { requireAuth, requireRole } from '../middleware/auth'
+import { db } from '../../db/client.js'
+import { TransactionRepository }  from '../../repositories/TransactionRepository.js'
+import { CategoryRepository }     from '../../repositories/CategoryRepository.js'
+import { BankAccountRepository }  from '../../repositories/BankAccountRepository.js'
+import { ImportTransactions }     from '../../../application/use-cases/transactions/ImportTransactions.js'
+import { ExportTransactions }     from '../../../application/use-cases/transactions/ExportTransactions.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 
 const txRepo   = new TransactionRepository(db)
 const catRepo  = new CategoryRepository(db)

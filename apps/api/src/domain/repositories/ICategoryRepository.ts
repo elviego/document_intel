@@ -1,4 +1,4 @@
-import type { Category, CategoryId, CreateCategoryInput } from '../entities/Category'
+import type { Category, CategoryId, CreateCategoryInput } from '../entities/Category.js'
 
 export interface ICategoryRepository {
   findAll(includeInactive?: boolean): Promise<Category[]>

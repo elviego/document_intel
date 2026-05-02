@@ -1,4 +1,4 @@
-import type { MealRecord, MealPricing, MealType, Child } from '../entities/MealRecord'
+import type { MealRecord, MealPricing, MealType, Child } from '../entities/MealRecord.js'
 
 export interface IMealRepository {
   findRecords(childId?: string, from?: Date, to?: Date): Promise<MealRecord[]>

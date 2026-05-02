@@ -1,8 +1,8 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { db } from '../../db/client'
-import { UserRepository } from '../../repositories/UserRepository'
-import { requireRole } from '../middleware/auth'
+import { db } from '../../db/client.js'
+import { UserRepository } from '../../repositories/UserRepository.js'
+import { requireRole } from '../middleware/auth.js'
 
 const repo = new UserRepository(db)
 

@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs'
-import type { IUserRepository } from '../../../domain/entities/User'
-import { AppError, UnauthorizedError } from '../../../shared/errors'
+import type { IUserRepository } from '../../../domain/entities/User.js'
+import { AppError, UnauthorizedError } from '../../../shared/errors.js'
 
 interface LoginInput {
   email: string

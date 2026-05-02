@@ -1,6 +1,6 @@
 import bcrypt from 'bcryptjs'
-import type { IUserRepository } from '../../../domain/entities/User'
-import { AppError, NotFoundError } from '../../../shared/errors'
+import type { IUserRepository } from '../../../domain/entities/User.js'
+import { AppError, NotFoundError } from '../../../shared/errors.js'
 
 interface AcceptInviteInput {
   token: string

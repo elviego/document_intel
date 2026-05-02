@@ -1,6 +1,6 @@
-import type { ISchoolYearRepository } from './ISchoolYearRepository'
-import type { IBudgetRepository } from './IBudgetRepository'
-import { NotFoundError } from '../../../shared/errors'
+import type { ISchoolYearRepository } from '../../../infrastructure/repositories/SchoolYearRepository.js'
+import type { IBudgetRepository } from '../../../infrastructure/repositories/BudgetRepository.js'
+import { NotFoundError } from '../../../shared/errors.js'
 
 export class CopyBudget {
   constructor(

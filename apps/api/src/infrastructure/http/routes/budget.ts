@@ -1,10 +1,10 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { db } from '../../db/client'
-import { BudgetRepository }     from '../../repositories/BudgetRepository'
-import { SchoolYearRepository } from '../../repositories/SchoolYearRepository'
-import { CopyBudget }           from '../../../application/use-cases/budget/CopyBudget'
-import { requireAuth, requireRole } from '../middleware/auth'
+import { db } from '../../db/client.js'
+import { BudgetRepository }     from '../../repositories/BudgetRepository.js'
+import { SchoolYearRepository } from '../../repositories/SchoolYearRepository.js'
+import { CopyBudget }           from '../../../application/use-cases/budget/CopyBudget.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
 
 const budgetRepo     = new BudgetRepository(db)
 const schoolYearRepo = new SchoolYearRepository(db)

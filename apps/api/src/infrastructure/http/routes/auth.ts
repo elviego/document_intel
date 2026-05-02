@@ -1,13 +1,13 @@
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
-import { db } from '../../db/client'
-import { UserRepository } from '../../repositories/UserRepository'
-import { ResendEmailService } from '../../email/ResendEmailService'
-import { Login } from '../../../application/use-cases/auth/Login'
-import { InviteUser } from '../../../application/use-cases/auth/InviteUser'
-import { AcceptInvite } from '../../../application/use-cases/auth/AcceptInvite'
-import { requireAuth, requireRole } from '../middleware/auth'
-import { env } from '../../../shared/env'
+import { db } from '../../db/client.js'
+import { UserRepository } from '../../repositories/UserRepository.js'
+import { ResendEmailService } from '../../email/ResendEmailService.js'
+import { Login } from '../../../application/use-cases/auth/Login.js'
+import { InviteUser } from '../../../application/use-cases/auth/InviteUser.js'
+import { AcceptInvite } from '../../../application/use-cases/auth/AcceptInvite.js'
+import { requireAuth, requireRole } from '../middleware/auth.js'
+import { env } from '../../../shared/env.js'
 
 export const authRoutes: FastifyPluginAsync = async (app) => {
   const userRepo  = new UserRepository(db)
