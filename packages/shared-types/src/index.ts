@@ -76,6 +76,13 @@ export interface BudgetEntryDTO {
   plannedAmount: number
 }
 
+export interface BudgetExecutionDTO {
+  categoryId: string
+  month: number
+  plannedAmount: number
+  actualAmount: number
+}
+
 export interface MonthlySummaryRow {
   categoryId: string
   categoryName: string

@@ -16,6 +16,11 @@ export const budgetRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(await budgetRepo.findByYear(schoolYearId))
   })
 
+  app.get('/:schoolYearId/execution', { preHandler: [requireAuth] }, async (req, reply) => {
+    const { schoolYearId } = z.object({ schoolYearId: z.string().uuid() }).parse(req.params)
+    return reply.send(await budgetRepo.getExecution(schoolYearId))
+  })
+
   app.put('/', { preHandler: [requireRole('admin')] }, async (req, reply) => {
     const body = z.object({
       schoolYearId:  z.string().uuid(),
