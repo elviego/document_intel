@@ -27,6 +27,7 @@ export async function buildApp() {
     genReqId: () => Math.random().toString(36).slice(2, 9),
   })
 
+  app.log.info({ corsOrigin: env.CORS_ORIGIN }, 'CORS config')
   await app.register(cors, { origin: env.CORS_ORIGIN, credentials: true })
   await app.register(jwt, { secret: env.JWT_SECRET })
   await app.register(rateLimit, { max: 200, timeWindow: '1 minute' })
