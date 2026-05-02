@@ -16,12 +16,19 @@ export const authRoutes: FastifyPluginAsync = async (app) => {
   // POST /v1/auth/login
   app.post('/login', async (req, reply) => {
     const body = z.object({ email: z.string().email(), password: z.string() }).parse(req.body)
-    const result = await new Login(userRepo).execute(body)
-    const token = app.jwt.sign(
-      { sub: result.userId, email: result.email, role: result.role },
-      { expiresIn: '8h' },
-    )
-    return reply.send({ token, user: { id: result.userId, email: result.email, fullName: result.fullName, role: result.role } })
+    app.log.info({ email: body.email }, '[login] attempt')
+    try {
+      const result = await new Login(userRepo).execute(body)
+      const token = app.jwt.sign(
+        { sub: result.userId, email: result.email, role: result.role },
+        { expiresIn: '8h' },
+      )
+      app.log.info({ email: body.email }, '[login] success')
+      return reply.send({ token, user: { id: result.userId, email: result.email, fullName: result.fullName, role: result.role } })
+    } catch (err) {
+      app.log.warn({ email: body.email, err }, '[login] failed')
+      throw err
+    }
   })
 
   // POST /v1/auth/invite  (admin only)

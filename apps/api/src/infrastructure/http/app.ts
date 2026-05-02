@@ -15,7 +15,7 @@ import { bankAccountRoutes } from './routes/bank-accounts.js'
 import { authRoutes } from './routes/auth.js'
 
 export async function buildApp() {
-  const app = Fastify({ logger: env.NODE_ENV === 'development' })
+  const app = Fastify({ logger: true })
 
   await app.register(cors, { origin: env.CORS_ORIGIN, credentials: true })
   await app.register(jwt, { secret: env.JWT_SECRET })
