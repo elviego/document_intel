@@ -27,7 +27,7 @@ const BankAccountsPage = lazy(() => import('@/features/bank-accounts/BankAccount
 const SchoolYearsPage  = lazy(() => import('@/features/school-years/SchoolYearsPage'))
 const UsersPage        = lazy(() => import('@/features/users/UsersPage'))
 
-export const router = createBrowserRouter([
+export const router: ReturnType<typeof createBrowserRouter> = createBrowserRouter([
   {
     path: '/auth',
     element: <AuthLayout />,
