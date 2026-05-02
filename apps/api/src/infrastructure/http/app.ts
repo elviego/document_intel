@@ -34,20 +34,53 @@ export async function buildApp() {
   await app.register(rateLimit, { max: 200, timeWindow: '1 minute' })
 
   // Global error handler
-  app.setErrorHandler((error, _req, reply) => {
+  app.setErrorHandler((error, req, reply) => {
+    const reqId = req.id
+
     if (error instanceof AppError) {
-      return reply.status(error.statusCode).send({ error: error.message, code: error.code })
+      req.log.warn({ reqId, code: error.code, status: error.statusCode }, error.message)
+      return reply.status(error.statusCode).send({ error: error.message, code: error.code, reqId })
     }
+
     if (error instanceof ZodError) {
-      const msg = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
-      return reply.status(400).send({ error: msg, code: 'VALIDATION_ERROR' })
+      const fields = error.errors.map(e => `${e.path.join('.') || 'body'}: ${e.message}`)
+      const msg = fields.join('; ')
+      req.log.warn({ reqId, fields, code: 'VALIDATION_ERROR' }, 'Validation failed')
+      return reply.status(400).send({ error: msg, code: 'VALIDATION_ERROR', reqId })
     }
-    // PostgreSQL unique violation
-    if ((error as any).code === '23505') {
-      return reply.status(409).send({ error: 'A record with those values already exists', code: 'DUPLICATE' })
+
+    // PostgreSQL constraint errors
+    const pgCode = (error as any).code
+    if (pgCode === '23505') {
+      req.log.warn({ reqId, pgCode, detail: (error as any).detail }, 'Unique constraint violation')
+      return reply.status(409).send({ error: 'A record with those values already exists', code: 'DUPLICATE', reqId })
     }
-    app.log.error(error)
-    return reply.status(500).send({ error: 'Internal server error' })
+    if (pgCode === '23503') {
+      req.log.warn({ reqId, pgCode, detail: (error as any).detail }, 'Foreign key violation')
+      return reply.status(409).send({ error: 'Referenced record does not exist', code: 'FK_VIOLATION', reqId })
+    }
+    if (pgCode === '23502') {
+      req.log.warn({ reqId, pgCode, detail: (error as any).detail }, 'Not null violation')
+      return reply.status(400).send({ error: 'A required field is missing', code: 'NULL_VIOLATION', reqId })
+    }
+
+    // Fastify rate limit
+    const anyErr = error as any
+    if (anyErr.statusCode === 429) {
+      return reply.status(429).send({ error: 'Too many requests — please slow down', code: 'RATE_LIMITED', reqId })
+    }
+
+    req.log.error({
+      reqId,
+      err: { message: anyErr.message, stack: anyErr.stack, name: anyErr.name },
+      req: { method: req.method, url: req.url, userId: (req.user as any)?.sub },
+    }, 'Unhandled error')
+
+    return reply.status(500).send({
+      error: 'Internal server error',
+      code: 'INTERNAL',
+      reqId,
+    })
   })
 
   // silence healthcheck polling from Railway

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, errorMessage } from '@/lib/api-client'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -58,7 +58,7 @@ function InviteModal({ open, onClose }: { open: boolean; onClose: () => void }) 
         <Input label={t('users.fullName')} value={form.fullName} onChange={set('fullName')} />
         <Input label={t('users.email')}    type="email" value={form.email} onChange={set('email')} />
         <Select label={t('users.role')} value={form.role} onChange={set('role')} options={ROLE_OPTIONS} />
-        {mutation.isError && <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>}
+        {mutation.isError && <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>}
         {mutation.isSuccess && (
           <p className="text-sm text-green-600">✓ {t('users.inviteSent')}</p>
         )}
@@ -97,7 +97,7 @@ function EditUserModal({ open, onClose, user }: { open: boolean; onClose: () => 
           onChange={e => setRole(e.target.value as Role)}
           options={ROLE_OPTIONS}
         />
-        {mutation.isError && <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>}
+        {mutation.isError && <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>}
       </div>
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

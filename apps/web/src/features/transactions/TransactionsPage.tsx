@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { format } from 'date-fns'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, errorMessage } from '@/lib/api-client'
 import { auth } from '@/lib/auth'
 import { useSchoolYears, currentSchoolYearName } from '@/hooks/useSchoolYear'
 import { useCategories } from '@/hooks/useCategories'
@@ -93,7 +93,7 @@ function AddTransactionModal({
           <p className="text-sm text-amber-600">No school year found. Create one first in School Years settings.</p>
         )}
         {mutation.isError && (
-          <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>
+          <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>
         )}
       </div>
 

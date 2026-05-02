@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, errorMessage } from '@/lib/api-client'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -35,7 +35,7 @@ function AddSchoolYearModal({ open, onClose }: { open: boolean; onClose: () => v
           placeholder="ex: 2025-2026" />
         <Input label={t('schoolYears.startDate')} type="date" value={form.startDate} onChange={set('startDate')} />
         <Input label={t('schoolYears.endDate')}   type="date" value={form.endDate}   onChange={set('endDate')} />
-        {mutation.isError && <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>}
+        {mutation.isError && <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>}
       </div>
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

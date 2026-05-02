@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, errorMessage } from '@/lib/api-client'
 import { useCategories } from '@/hooks/useCategories'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -62,7 +62,7 @@ function CategoryModal({
         />
         <Input label={t('categories.descriptionPt')} value={form.descriptionPt} onChange={set('descriptionPt')} />
         <Input label={t('categories.descriptionEn')} value={form.descriptionEn} onChange={set('descriptionEn')} />
-        {mutation.isError && <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>}
+        {mutation.isError && <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>}
       </div>
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>

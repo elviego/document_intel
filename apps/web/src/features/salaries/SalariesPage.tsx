@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, errorMessage } from '@/lib/api-client'
 import { useSchoolYears, currentSchoolYearName } from '@/hooks/useSchoolYear'
 import { useBankAccounts } from '@/hooks/useBankAccounts'
 import { PageHeader } from '@/components/ui/PageHeader'
@@ -93,7 +93,7 @@ function AddSalaryModal({
         <Input label={t('salaries.actualAmount')} type="number" step="0.01" value={form.actualAmount}
           onChange={set('actualAmount')} placeholder={t('salaries.actualAmountHint')} />
         {mutation.isError && (
-          <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>
+          <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>
         )}
       </div>
       <div className="flex justify-end gap-2 pt-2">

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, errorMessage } from '@/lib/api-client'
 import { useBankAccounts } from '@/hooks/useBankAccounts'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -31,7 +31,7 @@ function BankAccountModal({
     <Modal open={open} onClose={onClose} title={initial ? t('bankAccounts.edit') : t('bankAccounts.add')}>
       <div className="space-y-3">
         <Input label={t('bankAccounts.name')} value={name} onChange={e => setName(e.target.value)} />
-        {mutation.isError && <p className="text-sm text-red-600">{(mutation.error as Error).message}</p>}
+        {mutation.isError && <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>}
       </div>
       <div className="flex justify-end gap-2 pt-2">
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
