@@ -2,6 +2,7 @@ import Fastify from 'fastify'
 import cors from '@fastify/cors'
 import jwt from '@fastify/jwt'
 import rateLimit from '@fastify/rate-limit'
+import { ZodError } from 'zod'
 import { env } from '../../shared/env.js'
 import { AppError } from '../../shared/errors.js'
 import { transactionRoutes } from './routes/transactions.js'
@@ -36,6 +37,14 @@ export async function buildApp() {
   app.setErrorHandler((error, _req, reply) => {
     if (error instanceof AppError) {
       return reply.status(error.statusCode).send({ error: error.message, code: error.code })
+    }
+    if (error instanceof ZodError) {
+      const msg = error.errors.map(e => `${e.path.join('.')}: ${e.message}`).join('; ')
+      return reply.status(400).send({ error: msg, code: 'VALIDATION_ERROR' })
+    }
+    // PostgreSQL unique violation
+    if ((error as any).code === '23505') {
+      return reply.status(409).send({ error: 'A record with those values already exists', code: 'DUPLICATE' })
     }
     app.log.error(error)
     return reply.status(500).send({ error: 'Internal server error' })
