@@ -11,10 +11,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Check RAILWAY_TOKEN
+        run: |
+          if [ -z "${{ secrets.RAILWAY_TOKEN }}" ]; then
+            echo "❌ RAILWAY_TOKEN secret is not set in GitHub repo settings."
+            echo "Go to: GitHub repo → Settings → Secrets and variables → Actions → New repository secret"
+            echo "Name: RAILWAY_TOKEN"
+            echo "Value: get from railway.app → Account Settings → Tokens"
+            exit 1
+          fi
+          echo "✅ RAILWAY_TOKEN is set"
+
       - name: Install Railway CLI
         run: npm install -g @railway/cli
 
       - name: Deploy to Railway
-        run: railway up --service api --detach
+        run: railway up --service api
         env:
           RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
