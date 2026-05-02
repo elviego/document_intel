@@ -1,51 +1,26 @@
-name: Deploy
+# Railway and Vercel both auto-deploy on push to main via their native GitHub
+# integrations — no workflow needed here. This file is intentionally minimal.
+#
+# To configure native integrations:
+#   Railway: railway.app → project → Settings → Source → connect GitHub repo
+#   Vercel:  vercel.com  → project → Settings → Git → connect GitHub repo
+#
+# If you ever need to trigger a Railway redeploy manually:
+#   railway redeploy --service api
+#
+# Required repo secrets (if switching to CLI-based deploys):
+#   RAILWAY_TOKEN     — from railway.app → Account Settings → Tokens
+#   VERCEL_TOKEN      — from vercel.com  → Account Settings → Tokens
+#   VERCEL_ORG_ID     — from vercel.com  → Account Settings (slug)
+#   VERCEL_PROJECT_ID — from vercel.com  → Project Settings → General
+
+name: Deploy (native integrations handle this)
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
-  deploy-api:
-    name: Deploy API → Railway
+  noop:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo build --filter=@fin-tribe/api
-      # Railway deploy via CLI (set RAILWAY_TOKEN in repo secrets)
-      - name: Deploy to Railway
-        uses: railwayapp/railway-github-action@v1
-        with:
-          service: api
-        env:
-          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-
-  deploy-web:
-    name: Deploy Web → Vercel
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 9
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - run: pnpm turbo build --filter=@fin-tribe/web
-      - name: Deploy to Vercel
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          working-directory: apps/web
-          vercel-args: '--prod'
+      - run: echo "Deploys are handled by Railway and Vercel native GitHub integrations."

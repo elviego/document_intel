@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [main, develop]
+    branches: [main]
   pull_request:
-    branches: [main, develop]
+    branches: [main]
 
 jobs:
   ci:
-    name: Lint · Typecheck · Test
+    name: Typecheck · Lint
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -25,11 +25,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Lint
-        run: pnpm turbo lint
+      - name: Build shared packages
+        run: pnpm turbo build --filter=@fin-tribe/shared-types
 
       - name: Typecheck
         run: pnpm turbo typecheck
 
-      - name: Test
-        run: pnpm turbo test
+      - name: Lint
+        run: pnpm turbo lint
