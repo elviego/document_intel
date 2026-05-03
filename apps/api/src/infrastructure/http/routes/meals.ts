@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { db } from '../../db/client.js'
 import { MealRepository }     from '../../repositories/MealRepository.js'
 import { MealBillingService } from '../../../domain/services/MealBillingService.js'
+import { previewStudentCsv, ImportStudents } from '../../../application/use-cases/meals/ImportStudents.js'
+import { ValidationError } from '../../../shared/errors.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 
 const repo    = new MealRepository(db)
@@ -29,6 +31,24 @@ export const mealRoutes: FastifyPluginAsync = async (app) => {
       fullName: z.string().optional(), tuitionType: z.string().optional(), isActive: z.boolean().optional(),
     }).parse(req.body)
     return reply.send(await repo.updateChild(id, body))
+  })
+
+  // POST /v1/meals/children/import/preview
+  app.post('/children/import/preview', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const file = await req.file()
+    if (!file) throw new ValidationError('No file uploaded')
+    const buffer = await file.toBuffer()
+    return reply.send(previewStudentCsv(buffer))
+  })
+
+  // POST /v1/meals/children/import/confirm
+  app.post('/children/import/confirm', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const body = z.object({
+      schoolYearId: z.string().uuid(),
+      rows: z.array(z.object({ fullName: z.string(), tuitionType: z.string() })),
+    }).parse(req.body)
+    const result = await new ImportStudents(repo).execute(body.rows, body.schoolYearId)
+    return reply.send(result)
   })
 
   app.get('/records', { preHandler: [requireAuth] }, async (req, reply) => {

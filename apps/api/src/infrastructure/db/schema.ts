@@ -100,6 +100,41 @@ export const mealRecords = pgTable('meal_records', {
   createdAt: timestamp('created_at').defaultNow().notNull(),
 })
 
+export const employees = pgTable('employees', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  fullName:     text('full_name').notNull(),
+  position:     text('position').notNull().default(''),
+  contractType: text('contract_type').notNull().default('contrato'),
+  email:        text('email'),
+  phone:        text('phone'),
+  nif:          text('nif'),
+  iban:         text('iban'),
+  baseSalary:   numeric('base_salary', { precision: 12, scale: 2 }).notNull().default('0'),
+  startDate:    date('start_date'),
+  endDate:      date('end_date'),
+  isActive:     boolean('is_active').notNull().default(true),
+  notes:        text('notes'),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
+})
+
+export const activities = pgTable('activities', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  schoolYearId: uuid('school_year_id').notNull().references(() => schoolYears.id),
+  name:         text('name').notNull(),
+  description:  text('description'),
+  schedule:     text('schedule'),
+  capacity:     integer('capacity'),
+  isActive:     boolean('is_active').notNull().default(true),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
+})
+
+export const studentActivities = pgTable('student_activities', {
+  id:         uuid('id').primaryKey().defaultRandom(),
+  studentId:  uuid('student_id').notNull().references(() => children.id),
+  activityId: uuid('activity_id').notNull().references(() => activities.id),
+  enrolledAt: timestamp('enrolled_at').defaultNow().notNull(),
+})
+
 export const salaryEntries = pgTable('salary_entries', {
   id:                  uuid('id').primaryKey().defaultRandom(),
   schoolYearId:        uuid('school_year_id').notNull().references(() => schoolYears.id),

@@ -307,16 +307,17 @@ export default function BudgetPage() {
   const currentYear     = years.find(y => y.name === currentYearName) ?? years[0]
 
   const [selectedYearId, setSelectedYearId] = useState('')
-  const [tab, setTab] = useState<Tab>('planning')
+  const [tab, setTab]       = useState<Tab>('planning')
   const [copyFromId, setCopyFromId] = useState('')
+  const [copyMode, setCopyMode]     = useState<'planned' | 'executed'>('planned')
 
-  const yearId   = selectedYearId || currentYear?.id || ''
+  const yearId     = selectedYearId || currentYear?.id || ''
   const otherYears = years.filter(y => y.id !== yearId)
 
   const qc = useQueryClient()
   const copyMutation = useMutation({
-    mutationFn: (fromYearId: string) =>
-      apiClient.post('/v1/budget/copy', { fromYearId, toYearId: yearId }),
+    mutationFn: ({ fromYearId, mode }: { fromYearId: string; mode: string }) =>
+      apiClient.post('/v1/budget/copy', { fromYearId, toYearId: yearId, mode }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['budget', yearId] })
       qc.invalidateQueries({ queryKey: ['budget-execution', yearId] })
@@ -324,11 +325,12 @@ export default function BudgetPage() {
   })
 
   function handleCopy() {
-    const sourceId = copyFromId || otherYears[0]?.id
+    const sourceId   = copyFromId || otherYears[0]?.id
     if (!sourceId) return
     const sourceName = years.find(y => y.id === sourceId)?.name ?? ''
-    if (confirm(`Copiar orçamento de ${sourceName} para o ano selecionado?`))
-      copyMutation.mutate(sourceId)
+    const modeLabel  = copyMode === 'executed' ? 'executado' : 'planeado'
+    if (confirm(`Copiar orçamento ${modeLabel} de ${sourceName} para o ano selecionado?`))
+      copyMutation.mutate({ fromYearId: sourceId, mode: copyMode })
   }
 
   return (
@@ -347,6 +349,14 @@ export default function BudgetPage() {
                   className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
                 >
                   {otherYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+                </select>
+                <select
+                  value={copyMode}
+                  onChange={e => setCopyMode(e.target.value as 'planned' | 'executed')}
+                  className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+                >
+                  <option value="planned">Planeado</option>
+                  <option value="executed">Executado</option>
                 </select>
                 <Button variant="secondary" size="sm" onClick={handleCopy} disabled={copyMutation.isPending}>
                   {copyMutation.isPending ? '…' : 'Copiar'}

@@ -134,6 +134,57 @@ export interface SalaryEntryDTO {
   linkedTransactionId: string | null
 }
 
+// ─── Employee ────────────────────────────────────────────────────────────────
+export interface EmployeeDTO {
+  id: string
+  fullName: string
+  position: string
+  contractType: string
+  email: string | null
+  phone: string | null
+  nif: string | null
+  iban: string | null
+  baseSalary: number
+  startDate: string | null
+  endDate: string | null
+  isActive: boolean
+  notes: string | null
+}
+
+export interface CreateEmployeeDTO {
+  fullName: string
+  position: string
+  contractType: string
+  email?: string
+  phone?: string
+  nif?: string
+  iban?: string
+  baseSalary: number
+  startDate?: string
+  endDate?: string
+  notes?: string
+}
+
+// ─── Activities ───────────────────────────────────────────────────────────────
+export interface ActivityDTO {
+  id: string
+  schoolYearId: string
+  name: string
+  description: string | null
+  schedule: string | null
+  capacity: number | null
+  isActive: boolean
+  students: { id: string; fullName: string }[]
+}
+
+export interface CreateActivityDTO {
+  schoolYearId: string
+  name: string
+  description?: string
+  schedule?: string
+  capacity?: number
+}
+
 // ─── Import ──────────────────────────────────────────────────────────────────
 export interface ImportRowDTO {
   rowIndex: number

@@ -20,6 +20,8 @@ const SummaryPage      = lazy(() => import('@/features/summary/SummaryPage'))
 const SalariesPage     = lazy(() => import('@/features/salaries/SalariesPage'))
 const MealsPage        = lazy(() => import('@/features/meals/MealsPage'))
 const BudgetPage       = lazy(() => import('@/features/budget/BudgetPage'))
+const EmployeesPage    = lazy(() => import('@/features/employees/EmployeesPage'))
+const ActivitiesPage   = lazy(() => import('@/features/activities/ActivitiesPage'))
 
 // Admin pages
 const CategoriesPage   = lazy(() => import('@/features/categories/CategoriesPage'))
@@ -47,6 +49,8 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
       { path: 'salaries',       element: <RequireAuth role="admin">{s(SalariesPage)}</RequireAuth> },
       { path: 'meals',          element: s(MealsPage) },
       { path: 'budget',         element: s(BudgetPage) },
+      { path: 'employees',      element: s(EmployeesPage) },
+      { path: 'activities',     element: s(ActivitiesPage) },
       // Admin-only
       { path: 'categories',     element: <RequireAuth role="admin">{s(CategoriesPage)}</RequireAuth> },
       { path: 'bank-accounts',  element: <RequireAuth role="admin">{s(BankAccountsPage)}</RequireAuth> },

@@ -32,8 +32,12 @@ export const budgetRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.post('/copy', { preHandler: [requireRole('admin')] }, async (req, reply) => {
-    const body = z.object({ fromYearId: z.string().uuid(), toYearId: z.string().uuid() }).parse(req.body)
-    const count = await new CopyBudget(schoolYearRepo, budgetRepo).execute(body.fromYearId, body.toYearId)
+    const body = z.object({
+      fromYearId: z.string().uuid(),
+      toYearId:   z.string().uuid(),
+      mode:       z.enum(['planned', 'executed']).default('planned'),
+    }).parse(req.body)
+    const count = await new CopyBudget(schoolYearRepo, budgetRepo).execute(body.fromYearId, body.toYearId, body.mode)
     return reply.send({ copied: count })
   })
 }

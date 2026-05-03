@@ -8,7 +8,7 @@ export class CopyBudget {
     private readonly budget: IBudgetRepository,
   ) {}
 
-  async execute(fromYearId: string, toYearId: string): Promise<number> {
+  async execute(fromYearId: string, toYearId: string, mode: 'planned' | 'executed' = 'planned'): Promise<number> {
     const [from, to] = await Promise.all([
       this.schoolYears.findById(fromYearId),
       this.schoolYears.findById(toYearId),
@@ -16,17 +16,29 @@ export class CopyBudget {
     if (!from) throw new NotFoundError('Source school year')
     if (!to)   throw new NotFoundError('Target school year')
 
-    const entries = await this.budget.findByYear(fromYearId)
+    if (mode === 'executed') {
+      const execution = await this.budget.getExecution(fromYearId)
+      const rows = execution.filter(e => e.actualAmount !== 0)
+      await this.budget.bulkUpsert(
+        rows.map(e => ({
+          schoolYearId:  toYearId,
+          categoryId:    e.categoryId,
+          month:         e.month,
+          plannedAmount: Math.abs(e.actualAmount),
+        })),
+      )
+      return rows.length
+    }
 
+    const entries = await this.budget.findByYear(fromYearId)
     await this.budget.bulkUpsert(
       entries.map(e => ({
-        schoolYearId: toYearId,
-        categoryId:   e.categoryId,
-        month:        e.month,
+        schoolYearId:  toYearId,
+        categoryId:    e.categoryId,
+        month:         e.month,
         plannedAmount: e.plannedAmount,
       })),
     )
-
     return entries.length
   }
 }

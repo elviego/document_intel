@@ -15,6 +15,8 @@ import { schoolYearRoutes } from './routes/school-years.js'
 import { userRoutes } from './routes/users.js'
 import { bankAccountRoutes } from './routes/bank-accounts.js'
 import { authRoutes } from './routes/auth.js'
+import { employeeRoutes } from './routes/employees.js'
+import { activityRoutes } from './routes/activities.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -106,6 +108,8 @@ export async function buildApp() {
   await app.register(userRoutes,         { prefix: '/v1/users' })
   await app.register(bankAccountRoutes,  { prefix: '/v1/bank-accounts' })
   await app.register(authRoutes,         { prefix: '/v1/auth' })
+  await app.register(employeeRoutes,     { prefix: '/v1/employees' })
+  await app.register(activityRoutes,     { prefix: '/v1/activities' })
 
   return app
 }

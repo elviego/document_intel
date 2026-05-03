@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { auth } from '@/lib/auth'
+import { StudentImportModal } from './StudentImportModal'
 import type { ChildDTO, MealRecordDTO, ChildMonthlyBillingDTO } from '@fin-tribe/shared-types'
 
 interface MealPricing {
@@ -305,7 +306,8 @@ function PricingTab({ schoolYearId }: { schoolYearId: string }) {
 function ChildrenTab({ schoolYearId }: { schoolYearId: string }) {
   const { t } = useTranslation()
   const { data: children = [], isLoading } = useChildren(schoolYearId)
-  const [showAdd, setShowAdd] = useState(false)
+  const [showAdd, setShowAdd]       = useState(false)
+  const [showImport, setShowImport] = useState(false)
   const qc = useQueryClient()
 
   const toggleActive = useMutation({
@@ -316,7 +318,8 @@ function ChildrenTab({ schoolYearId }: { schoolYearId: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>↑ Import CSV</Button>
         <Button size="sm" onClick={() => setShowAdd(true)}>+ {t('meals.addChild')}</Button>
       </div>
       {isLoading ? (
@@ -355,7 +358,8 @@ function ChildrenTab({ schoolYearId }: { schoolYearId: string }) {
           </tbody>
         </table>
       )}
-      {showAdd && <AddChildModal open={showAdd} onClose={() => setShowAdd(false)} schoolYearId={schoolYearId} />}
+      {showAdd   && <AddChildModal open onClose={() => setShowAdd(false)} schoolYearId={schoolYearId} />}
+      {showImport && <StudentImportModal open onClose={() => setShowImport(false)} schoolYearId={schoolYearId} />}
     </div>
   )
 }

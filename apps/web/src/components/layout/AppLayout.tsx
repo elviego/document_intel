@@ -10,6 +10,8 @@ const navItems = [
   { to: '/salaries',      key: 'salaries' },
   { to: '/meals',         key: 'meals' },
   { to: '/budget',        key: 'budget' },
+  { to: '/employees',     key: 'employees' },
+  { to: '/activities',    key: 'activities' },
 ] as const
 
 const adminItems = [
