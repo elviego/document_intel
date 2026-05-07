@@ -37,6 +37,7 @@ export const schoolYears = pgTable('school_years', {
 export const bankAccounts = pgTable('bank_accounts', {
   id:        uuid('id').primaryKey().defaultRandom(),
   name:      text('name').notNull().unique(),
+  iban:      text('iban'),
   isActive:  boolean('is_active').notNull().default(true),
 })
 

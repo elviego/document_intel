@@ -10,6 +10,7 @@ export type MealType        = 'com_sopa' | 'sem_sopa'
 export interface BankAccount {
   id: string
   name: string
+  iban: string | null
   isActive: boolean
 }
 

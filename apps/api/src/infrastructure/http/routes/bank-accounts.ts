@@ -14,13 +14,17 @@ export const bankAccountRoutes: FastifyPluginAsync = async (app) => {
   })
 
   app.post('/', { preHandler: [requireRole('admin')] }, async (req, reply) => {
-    const { name } = z.object({ name: z.string().min(1) }).parse(req.body)
-    return reply.status(201).send(await repo.create(name))
+    const body = z.object({ name: z.string().min(1), iban: z.string().optional() }).parse(req.body)
+    return reply.status(201).send(await repo.create(body))
   })
 
   app.patch('/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
-    const body   = z.object({ name: z.string().optional(), isActive: z.boolean().optional() }).parse(req.body)
+    const body   = z.object({
+      name:     z.string().optional(),
+      iban:     z.string().nullable().optional(),
+      isActive: z.boolean().optional(),
+    }).parse(req.body)
     return reply.send(await repo.update(id, body))
   })
 }

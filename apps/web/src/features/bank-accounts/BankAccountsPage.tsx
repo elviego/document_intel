@@ -16,11 +16,12 @@ function BankAccountModal({
   const { t } = useTranslation()
   const qc = useQueryClient()
   const [name, setName] = useState(initial?.name ?? '')
+  const [iban, setIban] = useState(initial?.iban ?? '')
 
   const mutation = useMutation({
     mutationFn: () => initial
-      ? apiClient.patch(`/v1/bank-accounts/${initial.id}`, { name })
-      : apiClient.post('/v1/bank-accounts', { name }),
+      ? apiClient.patch(`/v1/bank-accounts/${initial.id}`, { name, iban: iban || null })
+      : apiClient.post('/v1/bank-accounts', { name, iban: iban || undefined }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['bank-accounts'] })
       onClose()
@@ -31,6 +32,7 @@ function BankAccountModal({
     <Modal open={open} onClose={onClose} title={initial ? t('bankAccounts.edit') : t('bankAccounts.add')}>
       <div className="space-y-3">
         <Input label={t('bankAccounts.name')} value={name} onChange={e => setName(e.target.value)} />
+        <Input label="IBAN" value={iban} onChange={e => setIban(e.target.value)} placeholder="PT50 0000 0000 0000 0000 0000 0" />
         {mutation.isError && <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>}
       </div>
       <div className="flex justify-end gap-2 pt-2">
@@ -79,7 +81,10 @@ export default function BankAccountsPage() {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-semibold text-gray-900">{acc.name}</p>
-                <p className="text-xs text-gray-400">{acc.isActive ? t('common.active') : t('common.inactive')}</p>
+                {acc.iban
+                  ? <p className="text-xs text-gray-500 font-mono truncate">{acc.iban}</p>
+                  : <p className="text-xs text-gray-400">{acc.isActive ? t('common.active') : t('common.inactive')}</p>
+                }
               </div>
               <button
                 onClick={() => toggleActive.mutate({ id: acc.id, isActive: !acc.isActive })}
