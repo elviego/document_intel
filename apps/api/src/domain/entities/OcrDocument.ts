@@ -115,6 +115,17 @@ export interface LlmProvider {
   updatedAt:    Date
 }
 
+export interface OcrWebhook {
+  id:        string
+  name:      string
+  url:       string
+  secret:    string | null
+  events:    string[]
+  isActive:  boolean
+  createdAt: Date
+  updatedAt: Date
+}
+
 export interface OcrDocumentConfig {
   id:                   string
   documentType:         OcrDocumentType

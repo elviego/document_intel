@@ -1,9 +1,9 @@
-import { eq, desc, count, avg, sql } from 'drizzle-orm'
+import { eq, desc, count, avg, sql, gte, and } from 'drizzle-orm'
 import type { PostgresJsDatabase } from 'drizzle-orm/postgres-js'
 import * as schema from '../db/schema.js'
 import type {
   IOcrRepository, CreateDocumentInput, CreateJobInput,
-  UpdateJobInput, CreateMetricInput,
+  UpdateJobInput, CreateMetricInput, OcrWebhook,
 } from '../../domain/repositories/IOcrRepository.js'
 import type {
   OcrDocument, OcrJob, OcrMetric, LlmProvider,
@@ -365,5 +365,116 @@ export class OcrRepository implements IOcrRepository {
       structuredSchema:     input.structuredSchema ? JSON.stringify(input.structuredSchema) : null,
     }).returning()
     return mapConfig(row)
+  }
+
+  // ── Document delete ──────────────────────────────────────────────────────────
+
+  async deleteDocument(id: string): Promise<void> {
+    await this.db.delete(schema.ocrDocuments).where(eq(schema.ocrDocuments.id, id))
+  }
+
+  // ── Metrics trending ─────────────────────────────────────────────────────────
+
+  async metricsTrending(days: number, documentType?: OcrDocumentType) {
+    const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
+    const conditions = documentType
+      ? and(gte(schema.ocrMetrics.createdAt, since), eq(schema.ocrMetrics.documentType, documentType as any))
+      : gte(schema.ocrMetrics.createdAt, since)
+
+    const rows = await this.db
+      .select({
+        date:            sql<string>`to_char(${schema.ocrMetrics.createdAt}, 'YYYY-MM-DD')`,
+        avgConfidence:   avg(schema.ocrMetrics.overallConfidence),
+        count:           count(),
+        avgProcessingMs: avg(schema.ocrMetrics.processingTimeMs),
+      })
+      .from(schema.ocrMetrics)
+      .where(conditions)
+      .groupBy(sql`to_char(${schema.ocrMetrics.createdAt}, 'YYYY-MM-DD')`)
+      .orderBy(sql`to_char(${schema.ocrMetrics.createdAt}, 'YYYY-MM-DD')`)
+
+    return rows.map(r => ({
+      date:            r.date,
+      avgConfidence:   r.avgConfidence != null ? Number(r.avgConfidence) : null,
+      count:           Number(r.count),
+      avgProcessingMs: r.avgProcessingMs != null ? Number(r.avgProcessingMs) : null,
+    }))
+  }
+
+  // ── Webhooks ─────────────────────────────────────────────────────────────────
+
+  private mapWebhook(row: typeof schema.ocrWebhooks.$inferSelect): OcrWebhook {
+    return {
+      id:        row.id,
+      name:      row.name,
+      url:       row.url,
+      secret:    row.secret,
+      events:    parseJson<string[]>(row.events) ?? [],
+      isActive:  row.isActive,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    }
+  }
+
+  async listWebhooks(): Promise<OcrWebhook[]> {
+    const rows = await this.db.select().from(schema.ocrWebhooks).orderBy(schema.ocrWebhooks.name)
+    return rows.map(r => this.mapWebhook(r))
+  }
+
+  async listActiveWebhooks(): Promise<OcrWebhook[]> {
+    const rows = await this.db.select().from(schema.ocrWebhooks)
+      .where(eq(schema.ocrWebhooks.isActive, true))
+    return rows.map(r => this.mapWebhook(r))
+  }
+
+  async findWebhookById(id: string): Promise<OcrWebhook | null> {
+    const [row] = await this.db.select().from(schema.ocrWebhooks).where(eq(schema.ocrWebhooks.id, id))
+    return row ? this.mapWebhook(row) : null
+  }
+
+  async createWebhook(input: Omit<OcrWebhook, 'id' | 'createdAt' | 'updatedAt'>): Promise<OcrWebhook> {
+    const [row] = await this.db.insert(schema.ocrWebhooks).values({
+      name:     input.name,
+      url:      input.url,
+      secret:   input.secret,
+      events:   JSON.stringify(input.events),
+      isActive: input.isActive,
+    }).returning()
+    return this.mapWebhook(row)
+  }
+
+  async updateWebhook(id: string, input: Partial<Omit<OcrWebhook, 'id' | 'createdAt' | 'updatedAt'>>): Promise<OcrWebhook> {
+    const [row] = await this.db.update(schema.ocrWebhooks)
+      .set({
+        name:      input.name,
+        url:       input.url,
+        secret:    input.secret,
+        events:    input.events ? JSON.stringify(input.events) : undefined,
+        isActive:  input.isActive,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.ocrWebhooks.id, id))
+      .returning()
+    if (!row) throw new NotFoundError('Webhook')
+    return this.mapWebhook(row)
+  }
+
+  async deleteWebhook(id: string): Promise<void> {
+    await this.db.delete(schema.ocrWebhooks).where(eq(schema.ocrWebhooks.id, id))
+  }
+
+  async createWebhookDelivery(input: {
+    webhookId: string; event: string; payload: string;
+    status: 'success' | 'failed'; responseStatus?: number; errorMessage?: string
+  }): Promise<void> {
+    await this.db.insert(schema.ocrWebhookDeliveries).values({
+      webhookId:      input.webhookId,
+      event:          input.event,
+      payload:        input.payload,
+      status:         input.status,
+      responseStatus: input.responseStatus,
+      errorMessage:   input.errorMessage,
+    })
   }
 }

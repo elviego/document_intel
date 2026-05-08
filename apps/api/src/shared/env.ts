@@ -12,8 +12,16 @@ const schema = z.object({
   RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM:     z.string().default('noreply@triboverde.pt'),
   // OCR module
-  OCR_UPLOAD_DIR: z.string().default('uploads/ocr'),
-  OCR_MAX_FILE_MB: z.coerce.number().default(50),
+  OCR_UPLOAD_DIR:   z.string().default('uploads/ocr'),
+  OCR_MAX_FILE_MB:  z.coerce.number().default(50),
+  // File storage
+  STORAGE_PROVIDER: z.enum(['local', 's3']).default('local'),
+  S3_BUCKET:        z.string().optional(),
+  S3_REGION:        z.string().optional(),
+  S3_ACCESS_KEY:    z.string().optional(),
+  S3_SECRET_KEY:    z.string().optional(),
+  S3_ENDPOINT:      z.string().optional(),
+  S3_PUBLIC_URL:    z.string().optional(),
 })
 
 const parsed = schema.safeParse(process.env)

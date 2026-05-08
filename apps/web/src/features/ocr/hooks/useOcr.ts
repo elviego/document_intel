@@ -35,12 +35,8 @@ export interface OcrResultMetadata {
   source:      { fileName: string; mimeType: string; fileSizeBytes: number; pageCount: number }
   detection:   { documentType: OcrDocumentType; autoDetected: boolean; detectionConfidence: number | null }
   ocr: {
-    engine:            string
-    engineVersion:     string | null
-    language:          string
-    processingTimeMs:  number
-    overallConfidence: number
-    pages:             OcrPageResult[]
+    engine: string; engineVersion: string | null; language: string
+    processingTimeMs: number; overallConfidence: number; pages: OcrPageResult[]
   }
   llm: { provider: string; model: string; processingTimeMs: number; tokensUsed: number } | null
   structuredData: Record<string, unknown> | null
@@ -48,43 +44,29 @@ export interface OcrResultMetadata {
 }
 
 export interface OcrJob {
-  id:               string
-  documentId:       string
-  status:           OcrStatus
-  ocrEngine:        string
-  rawText:          string | null
-  metadata:         OcrResultMetadata | null
-  errorMessage:     string | null
-  createdAt:        string
-  completedAt:      string | null
+  id: string; documentId: string; status: OcrStatus; ocrEngine: string
+  rawText: string | null; metadata: OcrResultMetadata | null
+  errorMessage: string | null; createdAt: string; completedAt: string | null
 }
 
 export interface OcrMetric {
-  id:                string
-  jobId:             string
-  documentId:        string
-  overallConfidence: number | null
-  pageConfidences:   number[] | null
-  characterCount:    number | null
-  wordCount:         number | null
-  processingTimeMs:  number
-  ocrEngine:         string
-  ocrEngineVersion:  string | null
-  llmModel:          string | null
-  llmProvider:       string | null
-  llmTokensUsed:     number | null
-  documentType:      OcrDocumentType | null
-  autoDetectedType:  boolean | null
-  createdAt:         string
+  id: string; jobId: string; documentId: string
+  overallConfidence: number | null; pageConfidences: number[] | null
+  characterCount: number | null; wordCount: number | null
+  processingTimeMs: number; ocrEngine: string; ocrEngineVersion: string | null
+  llmModel: string | null; llmProvider: string | null; llmTokensUsed: number | null
+  documentType: OcrDocumentType | null; autoDetectedType: boolean | null; createdAt: string
 }
 
 export interface MetricsAggregate {
-  totalDocuments:  number
-  avgConfidence:   number | null
-  avgProcessingMs: number | null
-  byEngine:        { engine: string; count: number }[]
-  byDocType:       { documentType: string; count: number }[]
-  byLlmModel:      { model: string; count: number }[]
+  totalDocuments: number; avgConfidence: number | null; avgProcessingMs: number | null
+  byEngine: { engine: string; count: number }[]
+  byDocType: { documentType: string; count: number }[]
+  byLlmModel: { model: string; count: number }[]
+}
+
+export interface TrendingPoint {
+  date: string; avgConfidence: number | null; count: number; avgProcessingMs: number | null
 }
 
 // ── Queries ──────────────────────────────────────────────────────────────────
@@ -92,7 +74,7 @@ export interface MetricsAggregate {
 export function useOcrDocuments(page = 0) {
   return useQuery({
     queryKey: ['ocr-documents', page],
-    queryFn: () => apiClient.get<{ items: OcrDocument[]; total: number }>(
+    queryFn:  () => apiClient.get<{ items: OcrDocument[]; total: number }>(
       `/v1/ocr/documents?limit=50&offset=${page * 50}`
     ),
   })
@@ -101,7 +83,7 @@ export function useOcrDocuments(page = 0) {
 export function useOcrDocument(id: string) {
   return useQuery({
     queryKey: ['ocr-document', id],
-    queryFn: () => apiClient.get<{ document: OcrDocument; job: OcrJob | null }>(`/v1/ocr/documents/${id}`),
+    queryFn:  () => apiClient.get<{ document: OcrDocument; job: OcrJob | null }>(`/v1/ocr/documents/${id}`),
     enabled:  !!id,
     refetchInterval: (query) => {
       const status = query.state.data?.document.status
@@ -113,17 +95,28 @@ export function useOcrDocument(id: string) {
 export function useOcrMetricsAggregate() {
   return useQuery({
     queryKey: ['ocr-metrics-aggregate'],
-    queryFn: () => apiClient.get<MetricsAggregate>('/v1/ocr/documents/metrics/aggregate'),
+    queryFn:  () => apiClient.get<MetricsAggregate>('/v1/ocr/documents/metrics/aggregate'),
   })
 }
 
 export function useOcrMetricsList(opts?: { documentId?: string }) {
   return useQuery({
     queryKey: ['ocr-metrics-list', opts],
-    queryFn: () => {
-      const params = new URLSearchParams({ limit: '100' })
-      if (opts?.documentId) params.set('documentId', opts.documentId)
-      return apiClient.get<OcrMetric[]>(`/v1/ocr/documents/metrics/list?${params}`)
+    queryFn:  () => {
+      const p = new URLSearchParams({ limit: '100' })
+      if (opts?.documentId) p.set('documentId', opts.documentId)
+      return apiClient.get<OcrMetric[]>(`/v1/ocr/documents/metrics/list?${p}`)
+    },
+  })
+}
+
+export function useOcrMetricsTrending(days = 30, documentType?: OcrDocumentType) {
+  return useQuery({
+    queryKey: ['ocr-metrics-trending', days, documentType],
+    queryFn:  () => {
+      const p = new URLSearchParams({ days: String(days) })
+      if (documentType) p.set('documentType', documentType)
+      return apiClient.get<TrendingPoint[]>(`/v1/ocr/documents/metrics/trending?${p}`)
     },
   })
 }
@@ -133,8 +126,18 @@ export function useOcrMetricsList(opts?: { documentId?: string }) {
 export function useUploadDocument() {
   const qc = useQueryClient()
   return useMutation({
+    mutationFn: (formData: FormData) => apiClient.postForm<OcrDocument>('/v1/ocr/documents', formData),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['ocr-documents'] }),
+  })
+}
+
+export function useBatchUpload() {
+  const qc = useQueryClient()
+  return useMutation({
     mutationFn: (formData: FormData) =>
-      apiClient.postForm<OcrDocument>('/v1/ocr/documents', formData),
+      apiClient.postForm<{ results: { fileName: string; id?: string; error?: string }[] }>(
+        '/v1/ocr/documents/batch', formData
+      ),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ocr-documents'] }),
   })
 }
@@ -142,12 +145,31 @@ export function useUploadDocument() {
 export function useProcessDocument() {
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (id: string) =>
-      apiClient.post<OcrResultMetadata>(`/v1/ocr/documents/${id}/process`, {}),
-    onSuccess: (_data, id) => {
+    mutationFn: ({ id, override }: { id: string; override?: { documentType?: OcrDocumentType; llmProviderId?: string; llmModel?: string } }) =>
+      apiClient.post<OcrResultMetadata>(`/v1/ocr/documents/${id}/process`, override ?? {}),
+    onSuccess: (_data, { id }) => {
       qc.invalidateQueries({ queryKey: ['ocr-documents'] })
       qc.invalidateQueries({ queryKey: ['ocr-document', id] })
       qc.invalidateQueries({ queryKey: ['ocr-metrics-aggregate'] })
+      qc.invalidateQueries({ queryKey: ['ocr-metrics-trending'] })
     },
   })
+}
+
+export function useDeleteDocument() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/v1/ocr/documents/${id}`),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['ocr-documents'] }),
+  })
+}
+
+export const VITE_API_URL = (import.meta as any).env?.VITE_API_URL ?? ''
+
+export function documentFileUrl(id: string) {
+  return `${VITE_API_URL}/v1/ocr/documents/${id}/file`
+}
+
+export function documentExportUrl(id: string, format: 'json' | 'csv') {
+  return `${VITE_API_URL}/v1/ocr/documents/${id}/export?format=${format}`
 }

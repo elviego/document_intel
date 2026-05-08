@@ -287,6 +287,28 @@ export const ocrMetrics = pgTable('ocr_metrics', {
   createdAt:         timestamp('created_at').defaultNow().notNull(),
 })
 
+export const ocrWebhooks = pgTable('ocr_webhooks', {
+  id:        uuid('id').primaryKey().defaultRandom(),
+  name:      text('name').notNull(),
+  url:       text('url').notNull(),
+  secret:    text('secret'),
+  events:    text('events').notNull(),   // JSON array
+  isActive:  boolean('is_active').notNull().default(true),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const ocrWebhookDeliveries = pgTable('ocr_webhook_deliveries', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  webhookId:      uuid('webhook_id').notNull().references(() => ocrWebhooks.id, { onDelete: 'cascade' }),
+  event:          text('event').notNull(),
+  payload:        text('payload').notNull(),
+  status:         text('status').notNull(),
+  responseStatus: integer('response_status'),
+  errorMessage:   text('error_message'),
+  createdAt:      timestamp('created_at').defaultNow().notNull(),
+})
+
 // ─── Salary Entries ───────────────────────────────────────────────────────────
 export const salaryEntries = pgTable('salary_entries', {
   id:                  uuid('id').primaryKey().defaultRandom(),

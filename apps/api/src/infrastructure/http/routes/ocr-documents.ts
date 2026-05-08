@@ -1,101 +1,223 @@
+import { createReadStream } from 'node:fs'
+import { extname } from 'node:path'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { db } from '../../db/client.js'
 import { OcrRepository } from '../../repositories/OcrRepository.js'
 import { UploadDocument } from '../../../application/use-cases/ocr/UploadDocument.js'
 import { ProcessDocument } from '../../../application/use-cases/ocr/ProcessDocument.js'
+import { getFileStorage } from '../../storage/FileStorageFactory.js'
 import { requireAuth, requireRole } from '../middleware/auth.js'
 import { ValidationError, NotFoundError } from '../../../shared/errors.js'
 import { env } from '../../../shared/env.js'
+import type { OcrDocumentType } from '../../../domain/entities/OcrDocument.js'
 
-const repo = new OcrRepository(db)
+const repo    = new OcrRepository(db)
+const storage = getFileStorage()
+
+const VALID_DOC_TYPES = ['invoice','receipt','contract','id_document','medical','bank_statement','form','other']
+
+function parseDocType(raw: unknown): OcrDocumentType | undefined {
+  return (raw && VALID_DOC_TYPES.includes(raw as string)) ? raw as OcrDocumentType : undefined
+}
 
 export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
 
-  // POST /v1/ocr/documents  — upload a document
+  // ── Upload single document ────────────────────────────────────────────────
   app.post('/', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
     const file = await req.file({ limits: { fileSize: env.OCR_MAX_FILE_MB * 1024 * 1024 } })
     if (!file) throw new ValidationError('No file uploaded')
 
-    const buffer = await file.toBuffer()
+    const buffer        = await file.toBuffer()
+    const autoDetect    = (file.fields['autoDetectType'] as any)?.value !== 'false'
+    const documentType  = parseDocType((file.fields['documentType'] as any)?.value)
+    const user          = req.user as { sub: string }
+    const autoProcess   = (file.fields['autoProcess'] as any)?.value === 'true'
 
-    const autoDetectType = file.fields['autoDetectType']
-      ? (file.fields['autoDetectType'] as any).value !== 'false'
-      : true
-
-    const rawType = (file.fields['documentType'] as any)?.value ?? null
-    const validTypes = ['invoice','receipt','contract','id_document','medical','bank_statement','form','other']
-    const documentType = rawType && validTypes.includes(rawType) ? rawType : undefined
-
-    const user = req.user as { sub: string }
-
-    const useCase = new UploadDocument(repo)
-    const doc = await useCase.execute({
-      fileName:       file.filename,
-      mimeType:       file.mimetype,
-      buffer,
-      autoDetectType,
-      documentType,
-      uploadedBy:     user.sub,
-      uploadDir:      env.OCR_UPLOAD_DIR,
-      maxFileMb:      env.OCR_MAX_FILE_MB,
+    const doc = await new UploadDocument(repo, storage).execute({
+      fileName: file.filename, mimeType: file.mimetype, buffer,
+      autoDetectType: autoDetect, documentType, uploadedBy: user.sub,
+      maxFileMb: env.OCR_MAX_FILE_MB,
     })
+
+    if (autoProcess) {
+      // fire-and-forget; client polls status
+      new ProcessDocument(repo, storage).execute(doc.id).catch(() => {})
+    }
 
     return reply.status(201).send(doc)
   })
 
-  // GET /v1/ocr/documents  — list documents
+  // ── Batch upload ──────────────────────────────────────────────────────────
+  app.post('/batch', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
+    const parts = req.files({ limits: { fileSize: env.OCR_MAX_FILE_MB * 1024 * 1024 } })
+    const user  = req.user as { sub: string }
+    const results: { fileName: string; id?: string; error?: string }[] = []
+
+    for await (const part of parts) {
+      try {
+        const buffer = await part.toBuffer()
+        const fields = (part as any).fields ?? {}
+        const autoDetect   = fields['autoDetectType']?.value !== 'false'
+        const documentType = parseDocType(fields['documentType']?.value)
+        const autoProcess  = fields['autoProcess']?.value === 'true'
+
+        const doc = await new UploadDocument(repo, storage).execute({
+          fileName: part.filename, mimeType: part.mimetype, buffer,
+          autoDetectType: autoDetect, documentType, uploadedBy: user.sub,
+          maxFileMb: env.OCR_MAX_FILE_MB,
+        })
+
+        if (autoProcess) {
+          new ProcessDocument(repo, storage).execute(doc.id).catch(() => {})
+        }
+
+        results.push({ fileName: part.filename, id: doc.id })
+      } catch (err) {
+        results.push({ fileName: part.filename, error: err instanceof Error ? err.message : String(err) })
+      }
+    }
+
+    return reply.status(207).send({ results })
+  })
+
+  // ── List documents ────────────────────────────────────────────────────────
   app.get('/', { preHandler: [requireAuth] }, async (req, reply) => {
     const q = z.object({
       limit:  z.coerce.number().int().min(1).max(200).default(50),
       offset: z.coerce.number().int().min(0).default(0),
+      status: z.enum(['pending','processing','completed','failed']).optional(),
+      documentType: z.enum(['invoice','receipt','contract','id_document','medical','bank_statement','form','other']).optional(),
     }).parse(req.query)
-
-    const result = await repo.listDocuments(q)
-    return reply.send(result)
+    return reply.send(await repo.listDocuments(q))
   })
 
-  // GET /v1/ocr/documents/:id  — get document + latest job result
+  // ── Get document + latest job ─────────────────────────────────────────────
   app.get('/:id', { preHandler: [requireAuth] }, async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
-    const doc = await repo.findDocumentById(id)
+    const doc    = await repo.findDocumentById(id)
     if (!doc) throw new NotFoundError('Document')
-
     const job = await repo.findLatestJobForDocument(id)
     return reply.send({ document: doc, job })
   })
 
-  // POST /v1/ocr/documents/:id/process  — trigger OCR processing
+  // ── Serve raw file (for preview) ─────────────────────────────────────────
+  app.get('/:id/file', { preHandler: [requireAuth] }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    const doc    = await repo.findDocumentById(id)
+    if (!doc) throw new NotFoundError('Document')
+
+    if (storage.provider === 's3') {
+      const url = await storage.getServeUrl(doc.filePath, 3600)
+      return reply.redirect(url, 302)
+    }
+
+    // Local: stream the file directly
+    try {
+      const stream = createReadStream(doc.filePath)
+      return reply
+        .header('Content-Type', doc.mimeType)
+        .header('Content-Disposition', `inline; filename="${encodeURIComponent(doc.fileName)}"`)
+        .send(stream)
+    } catch {
+      throw new NotFoundError('File')
+    }
+  })
+
+  // ── Process with optional override ───────────────────────────────────────
   app.post('/:id/process', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
-    const metadata = await new ProcessDocument(repo).execute(id)
+    const body   = z.object({
+      documentType:  z.enum(['invoice','receipt','contract','id_document','medical','bank_statement','form','other']).optional(),
+      llmProviderId: z.string().uuid().optional(),
+      llmModel:      z.string().optional(),
+    }).optional().parse(req.body)
+
+    const metadata = await new ProcessDocument(repo, storage).execute(id, body ?? undefined)
     return reply.send(metadata)
   })
 
-  // DELETE /v1/ocr/documents/:id  — delete document record (file kept)
+  // ── Export result ────────────────────────────────────────────────────────
+  app.get('/:id/export', { preHandler: [requireAuth] }, async (req, reply) => {
+    const { id }     = z.object({ id: z.string().uuid() }).parse(req.params)
+    const { format } = z.object({ format: z.enum(['json','csv']).default('json') }).parse(req.query)
+
+    const doc = await repo.findDocumentById(id)
+    if (!doc) throw new NotFoundError('Document')
+    const job = await repo.findLatestJobForDocument(id)
+    if (!job?.metadata) throw new NotFoundError('OCR result')
+
+    const baseName = doc.fileName.replace(/\.[^.]+$/, '')
+
+    if (format === 'json') {
+      return reply
+        .header('Content-Type', 'application/json')
+        .header('Content-Disposition', `attachment; filename="${baseName}-ocr.json"`)
+        .send(JSON.stringify(job.metadata, null, 2))
+    }
+
+    // CSV: flatten structuredData + OCR summary
+    const { metadata } = job
+    const rows: string[][] = [
+      ['field', 'value'],
+      ['documentId',        metadata.documentId],
+      ['processedAt',       metadata.processedAt],
+      ['documentType',      metadata.detection.documentType],
+      ['autoDetected',      String(metadata.detection.autoDetected)],
+      ['ocrEngine',         metadata.ocr.engine],
+      ['ocrConfidence',     String(metadata.ocr.overallConfidence)],
+      ['ocrProcessingMs',   String(metadata.ocr.processingTimeMs)],
+      ['llmModel',          metadata.llm?.model ?? ''],
+      ['llmProvider',       metadata.llm?.provider ?? ''],
+      ['llmTokensUsed',     String(metadata.llm?.tokensUsed ?? '')],
+      ['pages',             String(metadata.ocr.pages.length)],
+      ['validationStatus',  metadata.validation.status],
+    ]
+
+    if (metadata.structuredData) {
+      for (const [k, v] of Object.entries(metadata.structuredData)) {
+        rows.push([`data.${k}`, typeof v === 'object' ? JSON.stringify(v) : String(v ?? '')])
+      }
+    }
+
+    const csv = rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(',')).join('\n')
+    return reply
+      .header('Content-Type', 'text/csv')
+      .header('Content-Disposition', `attachment; filename="${baseName}-ocr.csv"`)
+      .send(csv)
+  })
+
+  // ── Delete document ──────────────────────────────────────────────────────
   app.delete('/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     const doc = await repo.findDocumentById(id)
     if (!doc) throw new NotFoundError('Document')
-    // Note: physical file deletion is intentionally omitted for audit trail
-    await repo.updateDocumentStatus(id, 'failed')
+    await storage.delete(doc.filePath).catch(() => {})
+    await repo.deleteDocument(id)
     return reply.status(204).send()
   })
 
-  // GET /v1/ocr/metrics  — aggregate metrics dashboard
+  // ── Metrics aggregate ────────────────────────────────────────────────────
   app.get('/metrics/aggregate', { preHandler: [requireRole('admin')] }, async (_req, reply) => {
-    const agg = await repo.metricsAggregate()
-    return reply.send(agg)
+    return reply.send(await repo.metricsAggregate())
   })
 
-  // GET /v1/ocr/metrics/list  — raw metrics list
+  // ── Metrics list ─────────────────────────────────────────────────────────
   app.get('/metrics/list', { preHandler: [requireRole('admin')] }, async (req, reply) => {
     const q = z.object({
       limit:      z.coerce.number().int().min(1).max(500).default(100),
       offset:     z.coerce.number().int().min(0).default(0),
       documentId: z.string().uuid().optional(),
     }).parse(req.query)
-    const rows = await repo.listMetrics(q)
-    return reply.send(rows)
+    return reply.send(await repo.listMetrics(q))
+  })
+
+  // ── Metrics trending (time-series) ────────────────────────────────────────
+  app.get('/metrics/trending', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const q = z.object({
+      days:         z.coerce.number().int().min(1).max(365).default(30),
+      documentType: z.enum(['invoice','receipt','contract','id_document','medical','bank_statement','form','other']).optional(),
+    }).parse(req.query)
+    return reply.send(await repo.metricsTrending(q.days, q.documentType as OcrDocumentType | undefined))
   })
 }

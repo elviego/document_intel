@@ -9,14 +9,15 @@ import { errorMessage } from '@/lib/api-client'
 import {
   useLlmProviders, useCreateLlmProvider, useUpdateLlmProvider,
   useDeleteLlmProvider, useSetDefaultProvider, useOcrConfigs, useUpdateOcrConfig,
+  useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook,
 } from './hooks/useOcrConfig'
-import type { LlmProvider, LlmProviderType, OcrDocumentConfig } from './hooks/useOcrConfig'
+import type { LlmProvider, LlmProviderType, OcrDocumentConfig, OcrWebhook } from './hooks/useOcrConfig'
 import type { OcrDocumentType } from './hooks/useOcr'
 
 const PROVIDER_TYPES: { value: LlmProviderType; label: string; hint: string }[] = [
-  { value: 'anthropic', label: 'Anthropic (Claude)',         hint: 'Claude 3.5 Sonnet, Claude 3 Opus…' },
-  { value: 'openai',    label: 'OpenAI',                     hint: 'GPT-4o, GPT-4 Turbo…' },
-  { value: 'ollama',    label: 'Ollama (local)',              hint: 'Llama 3, Mistral, Phi…' },
+  { value: 'anthropic', label: 'Anthropic (Claude)',         hint: 'claude-3-5-sonnet-20241022' },
+  { value: 'openai',    label: 'OpenAI',                     hint: 'gpt-4o, gpt-4-turbo…' },
+  { value: 'ollama',    label: 'Ollama (local)',              hint: 'llama3, mistral, phi…' },
   { value: 'deepseek',  label: 'DeepSeek',                   hint: 'deepseek-chat, deepseek-reasoner…' },
   { value: 'custom',    label: 'Custom (OpenAI-compatible)', hint: 'Any OpenAI-compatible endpoint' },
 ]
@@ -32,7 +33,15 @@ const DOC_TYPE_LABELS: Record<OcrDocumentType, string> = {
   other:         'Other',
 }
 
-// ── Provider form modal ──────────────────────────────────────────────────────
+const WEBHOOK_EVENTS = [
+  { value: 'document.uploaded',   label: 'Document uploaded' },
+  { value: 'document.processing', label: 'Processing started' },
+  { value: 'document.completed',  label: 'Processing completed' },
+  { value: 'document.failed',     label: 'Processing failed' },
+  { value: 'document.deleted',    label: 'Document deleted' },
+]
+
+// ── Provider modal ────────────────────────────────────────────────────────────
 
 function ProviderModal({
   open, onClose, existing,
@@ -52,9 +61,8 @@ function ProviderModal({
     isActive:     existing?.isActive     ?? true,
   })
 
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+  const set      = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
-
   const setCheck = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.checked }))
 
@@ -68,19 +76,14 @@ function ProviderModal({
       isDefault:    existing?.isDefault ?? false,
     }
     if (form.apiKey) body.apiKey = form.apiKey
-
-    if (existing) {
-      await update.mutateAsync({ id: existing.id, ...body })
-    } else {
-      await create.mutateAsync(body)
-    }
+    if (existing) await update.mutateAsync({ id: existing.id, ...body })
+    else           await create.mutateAsync(body)
     onClose()
   }
 
   const isPending = create.isPending || update.isPending
   const error     = create.error || update.error
-
-  const modelPlaceholder = PROVIDER_TYPES.find(p => p.value === form.providerType)?.hint ?? ''
+  const modelHint = PROVIDER_TYPES.find(p => p.value === form.providerType)?.hint ?? ''
 
   return (
     <Modal open={open} onClose={onClose} title={existing ? 'Edit LLM Provider' : 'Add LLM Provider'}>
@@ -111,8 +114,8 @@ function ProviderModal({
           value={form.baseUrl}
           onChange={set('baseUrl')}
           placeholder={
-            form.providerType === 'ollama'    ? 'http://localhost:11434/v1' :
-            form.providerType === 'deepseek'  ? 'https://api.deepseek.com/v1' :
+            form.providerType === 'ollama'   ? 'http://localhost:11434/v1' :
+            form.providerType === 'deepseek' ? 'https://api.deepseek.com/v1' :
             'https://api.openai.com/v1'
           }
         />
@@ -121,7 +124,7 @@ function ProviderModal({
           label="Default model"
           value={form.defaultModel}
           onChange={set('defaultModel')}
-          placeholder={modelPlaceholder}
+          placeholder={modelHint}
         />
 
         <label className="flex items-center gap-2 text-sm cursor-pointer">
@@ -149,20 +152,15 @@ function ProviderModal({
 
 // ── Doc-type config row ───────────────────────────────────────────────────────
 
-function ConfigRow({
-  cfg, providers,
-}: {
-  cfg: OcrDocumentConfig
-  providers: LlmProvider[]
-}) {
+function ConfigRow({ cfg, providers }: { cfg: OcrDocumentConfig; providers: LlmProvider[] }) {
   const { t }  = useTranslation()
   const update = useUpdateOcrConfig()
   const [open, setOpen] = useState(false)
   const [form, setForm] = useState({
-    ocrLanguage:    cfg.ocrLanguage,
-    ocrDpi:         String(cfg.ocrDpi ?? 300),
-    llmProviderId:  cfg.llmProviderId ?? '',
-    llmModel:       cfg.llmModel ?? '',
+    ocrLanguage:       cfg.ocrLanguage,
+    ocrDpi:            String(cfg.ocrDpi ?? 300),
+    llmProviderId:     cfg.llmProviderId ?? '',
+    llmModel:          cfg.llmModel ?? '',
     llmPromptTemplate: cfg.llmPromptTemplate ?? '',
   })
 
@@ -171,11 +169,11 @@ function ConfigRow({
 
   const handleSave = async () => {
     await update.mutateAsync({
-      documentType:   cfg.documentType,
-      ocrLanguage:    form.ocrLanguage,
-      ocrDpi:         Number(form.ocrDpi) || 300,
-      llmProviderId:  form.llmProviderId || null,
-      llmModel:       form.llmModel      || null,
+      documentType:      cfg.documentType,
+      ocrLanguage:       form.ocrLanguage,
+      ocrDpi:            Number(form.ocrDpi) || 300,
+      llmProviderId:     form.llmProviderId || null,
+      llmModel:          form.llmModel      || null,
       llmPromptTemplate: form.llmPromptTemplate || null,
     })
     setOpen(false)
@@ -191,7 +189,7 @@ function ConfigRow({
         <td className="py-2 pr-4 text-gray-600">{cfg.ocrDpi ?? 300} dpi</td>
         <td className="py-2 pr-4 text-gray-600">
           {activeProvider
-            ? <span>{activeProvider.name} <span className="text-gray-400">({cfg.llmModel || activeProvider.defaultModel})</span></span>
+            ? <>{activeProvider.name} <span className="text-gray-400">({cfg.llmModel || activeProvider.defaultModel})</span></>
             : <span className="text-gray-400">—</span>}
         </td>
         <td className="py-2">
@@ -253,6 +251,180 @@ function ConfigRow({
   )
 }
 
+// ── Webhook modal ─────────────────────────────────────────────────────────────
+
+function WebhookModal({
+  open, onClose, existing,
+}: {
+  open: boolean; onClose: () => void; existing?: OcrWebhook
+}) {
+  const { t } = useTranslation()
+  const create = useCreateWebhook()
+  const update = useUpdateWebhook()
+
+  const [form, setForm] = useState({
+    name:     existing?.name     ?? '',
+    url:      existing?.url      ?? '',
+    secret:   '',
+    events:   existing?.events   ?? [] as string[],
+    isActive: existing?.isActive ?? true,
+  })
+
+  const set      = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.value }))
+  const setCheck = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setForm(f => ({ ...f, [k]: e.target.checked }))
+
+  const toggleEvent = (ev: string) =>
+    setForm(f => ({
+      ...f,
+      events: f.events.includes(ev) ? f.events.filter(e => e !== ev) : [...f.events, ev],
+    }))
+
+  const handleSubmit = async () => {
+    const body: any = {
+      name:     form.name,
+      url:      form.url,
+      events:   form.events,
+      isActive: form.isActive,
+      secret:   form.secret || null,
+    }
+    if (existing) await update.mutateAsync({ id: existing.id, ...body })
+    else           await create.mutateAsync(body)
+    onClose()
+  }
+
+  const isPending = create.isPending || update.isPending
+  const error     = create.error || update.error
+
+  return (
+    <Modal open={open} onClose={onClose} title={existing ? 'Edit Webhook' : 'Add Webhook'}>
+      <div className="space-y-3">
+        <Input label="Name" value={form.name} onChange={set('name')} placeholder="My webhook" />
+        <Input label="URL" value={form.url} onChange={set('url')} placeholder="https://example.com/webhook" />
+        <Input
+          label="Secret (optional)"
+          type="password"
+          value={form.secret}
+          onChange={set('secret')}
+          placeholder={existing ? '(leave blank to keep existing)' : 'Signing secret for X-OCR-Signature header'}
+        />
+
+        <div className="space-y-2">
+          <label className="block text-sm font-medium text-gray-700">Events</label>
+          {WEBHOOK_EVENTS.map(ev => (
+            <label key={ev.value} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input
+                type="checkbox"
+                checked={form.events.includes(ev.value)}
+                onChange={() => toggleEvent(ev.value)}
+                className="rounded border-gray-300 text-brand-600"
+              />
+              <span className="text-gray-700">{ev.label}</span>
+              <span className="text-gray-400 text-xs font-mono">{ev.value}</span>
+            </label>
+          ))}
+        </div>
+
+        <label className="flex items-center gap-2 text-sm cursor-pointer">
+          <input
+            type="checkbox"
+            checked={form.isActive}
+            onChange={setCheck('isActive')}
+            className="rounded border-gray-300 text-brand-600"
+          />
+          Active
+        </label>
+
+        {error && <p className="text-sm text-red-600">{errorMessage(error)}</p>}
+      </div>
+
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="secondary" onClick={onClose} disabled={isPending}>{t('common.cancel')}</Button>
+        <Button onClick={handleSubmit} disabled={!form.name || !form.url || form.events.length === 0 || isPending}>
+          {isPending ? t('common.loading') : t('common.save')}
+        </Button>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Webhooks section ──────────────────────────────────────────────────────────
+
+function WebhooksSection() {
+  const { t }                = useTranslation()
+  const { data: webhooks = [], isLoading } = useWebhooks()
+  const remove               = useDeleteWebhook()
+  const [showAdd,      setShowAdd]      = useState(false)
+  const [editWebhook,  setEditWebhook]  = useState<OcrWebhook | undefined>()
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide">Webhooks</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Receive HTTP POST notifications for OCR events. Signed with HMAC-SHA256 via <code className="bg-gray-100 px-1 rounded">X-OCR-Signature</code>.
+          </p>
+        </div>
+        <Button size="sm" onClick={() => { setEditWebhook(undefined); setShowAdd(true) }}>
+          + Add webhook
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-gray-400">{t('common.loading')}</p>
+      ) : webhooks.length === 0 ? (
+        <p className="text-sm text-gray-500">No webhooks configured.</p>
+      ) : (
+        <div className="space-y-3">
+          {webhooks.map(wh => (
+            <div key={wh.id} className="border border-gray-200 rounded-lg p-4 flex items-start justify-between">
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="font-medium text-gray-800 text-sm">{wh.name}</span>
+                  {!wh.isActive && <Badge variant="gray">Inactive</Badge>}
+                </div>
+                <p className="text-xs text-gray-500 truncate">{wh.url}</p>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {wh.events.map(ev => (
+                    <span key={ev} className="inline-flex items-center px-1.5 py-0.5 rounded bg-gray-100 text-gray-600 text-xs font-mono">
+                      {ev}
+                    </span>
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center gap-2 text-xs ml-4 shrink-0">
+                <button
+                  className="text-brand-600 hover:underline"
+                  onClick={() => { setEditWebhook(wh); setShowAdd(true) }}
+                >
+                  Edit
+                </button>
+                <button
+                  className="text-red-500 hover:text-red-700"
+                  onClick={() => { if (confirm('Delete this webhook?')) remove.mutate(wh.id) }}
+                  disabled={remove.isPending}
+                >
+                  Delete
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showAdd && (
+        <WebhookModal
+          open={showAdd}
+          onClose={() => { setShowAdd(false); setEditWebhook(undefined) }}
+          existing={editWebhook}
+        />
+      )}
+    </section>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OcrConfigPage() {
@@ -261,15 +433,12 @@ export default function OcrConfigPage() {
   const { data: configs   = [], isLoading: configsLoading   } = useOcrConfigs()
   const deleteProvider = useDeleteLlmProvider()
   const setDefault     = useSetDefaultProvider()
-  const [showAdd, setShowAdd]       = useState(false)
+  const [showAdd,      setShowAdd]      = useState(false)
   const [editProvider, setEditProvider] = useState<LlmProvider | undefined>()
 
   return (
     <div className="h-full flex flex-col">
-      <PageHeader
-        title={t('ocr.configTitle')}
-        subtitle={t('ocr.configSubtitle')}
-      />
+      <PageHeader title={t('ocr.configTitle')} subtitle={t('ocr.configSubtitle')} />
 
       <div className="flex-1 overflow-auto px-8 pb-8 space-y-10">
 
@@ -330,14 +499,14 @@ export default function OcrConfigPage() {
           )}
         </section>
 
-        {/* Per-type configs */}
+        {/* Per-type config */}
         <section>
-          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-4">
+          <h2 className="text-sm font-semibold text-gray-700 uppercase tracking-wide mb-2">
             Per-Document-Type Configuration
           </h2>
           <p className="text-xs text-gray-500 mb-4">
             Configure OCR language, resolution, and LLM provider per document type.
-            If no provider is set for a type, the system default provider is used.
+            If no provider is set for a type, the system default is used.
           </p>
 
           {configsLoading ? (
@@ -361,6 +530,9 @@ export default function OcrConfigPage() {
             </table>
           )}
         </section>
+
+        {/* Webhooks */}
+        <WebhooksSection />
       </div>
 
       {showAdd && (

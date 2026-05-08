@@ -110,4 +110,41 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
     const cfg = await repo.upsertConfig(documentType, body as any)
     return reply.send(cfg)
   })
+
+  // ── Webhooks ─────────────────────────────────────────────────────────────────
+
+  const webhookBody = z.object({
+    name:     z.string().min(1).max(100),
+    url:      z.string().url(),
+    secret:   z.string().optional().nullable(),
+    events:   z.array(z.string()).min(1),
+    isActive: z.boolean().default(true),
+  })
+
+  // GET /v1/ocr/webhooks
+  app.get('/webhooks', { preHandler: [requireRole('admin')] }, async (_req, reply) => {
+    return reply.send(await repo.listWebhooks())
+  })
+
+  // POST /v1/ocr/webhooks
+  app.post('/webhooks', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const body = webhookBody.parse(req.body)
+    const wh   = await repo.createWebhook({ ...body, secret: body.secret ?? null })
+    return reply.status(201).send(wh)
+  })
+
+  // PATCH /v1/ocr/webhooks/:id
+  app.patch('/webhooks/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    const body   = webhookBody.partial().parse(req.body)
+    const wh     = await repo.updateWebhook(id, { ...body, secret: body.secret ?? undefined })
+    return reply.send(wh)
+  })
+
+  // DELETE /v1/ocr/webhooks/:id
+  app.delete('/webhooks/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    await repo.deleteWebhook(id)
+    return reply.status(204).send()
+  })
 }

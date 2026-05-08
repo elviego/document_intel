@@ -1,29 +1,42 @@
 import type { IOcrRepository } from '../../../domain/repositories/IOcrRepository.js'
 import type { OcrDocumentType, OcrResultMetadata } from '../../../domain/entities/OcrDocument.js'
+import type { IFileStorage } from '../../../infrastructure/storage/IFileStorage.js'
 import { pickEngine } from '../../../infrastructure/ocr/OcrEngineFactory.js'
 import { buildLlmProvider } from '../../../infrastructure/llm/LlmProviderFactory.js'
 import { StructuredExtractor } from '../../../infrastructure/llm/StructuredExtractor.js'
 import { NotFoundError } from '../../../shared/errors.js'
 
-export class ProcessDocument {
-  constructor(private readonly repo: IOcrRepository) {}
+export interface ProcessOverride {
+  documentType?:  OcrDocumentType
+  llmProviderId?: string
+  llmModel?:      string
+}
 
-  async execute(documentId: string): Promise<OcrResultMetadata> {
+export class ProcessDocument {
+  constructor(
+    private readonly repo:    IOcrRepository,
+    private readonly storage: IFileStorage,
+  ) {}
+
+  async execute(documentId: string, override?: ProcessOverride): Promise<OcrResultMetadata> {
     const doc = await this.repo.findDocumentById(documentId)
     if (!doc) throw new NotFoundError('Document')
 
-    const config = doc.documentType
-      ? await this.repo.findConfigByType(doc.documentType)
+    const effectiveType = override?.documentType ?? doc.documentType
+    const config = effectiveType
+      ? await this.repo.findConfigByType(effectiveType)
       : null
 
     const ocrEngine = pickEngine(doc.mimeType, config?.ocrEngine ?? 'tesseract')
     const language  = config?.ocrLanguage ?? 'por+eng'
 
-    // Create job record
+    // For S3/remote storage, we need a local file path — download to tmp
+    const filePath = await this.resolveFilePath(doc.filePath, doc.mimeType)
+
     const job = await this.repo.createJob({
       documentId,
-      ocrEngine: ocrEngine.name,
-      llmProviderId: config?.llmProviderId ?? undefined,
+      ocrEngine:     ocrEngine.name,
+      llmProviderId: override?.llmProviderId ?? config?.llmProviderId ?? undefined,
     })
 
     await this.repo.updateJob(job.id, { status: 'processing', startedAt: new Date() })
@@ -34,11 +47,11 @@ export class ProcessDocument {
     try {
       // ── Step 1: OCR ──────────────────────────────────────────────────────────
       const ocrStart  = Date.now()
-      const ocrResult = await ocrEngine.recognize(doc.filePath, language)
+      const ocrResult = await ocrEngine.recognize(filePath, language)
       const ocrMs     = Date.now() - ocrStart
 
       // ── Step 2: Resolve document type ────────────────────────────────────────
-      let documentType:        OcrDocumentType = doc.documentType ?? 'other'
+      let documentType: OcrDocumentType = effectiveType ?? doc.documentType ?? 'other'
       let autoDetected                         = false
       let detectionConfidence: number | null   = null
       let llmTotalMs                           = 0
@@ -47,19 +60,20 @@ export class ProcessDocument {
       let llmProv:   string | null             = null
       let structured: Record<string, unknown> | null = null
 
-      // Resolve LLM provider (config-specific or system default)
-      const providerRecord = config?.llmProviderId
-        ? await this.repo.findProviderById(config.llmProviderId)
+      // Resolve LLM provider (override → config → system default)
+      const resolvedProviderId = override?.llmProviderId ?? config?.llmProviderId
+      const providerRecord = resolvedProviderId
+        ? await this.repo.findProviderById(resolvedProviderId)
         : await this.repo.findDefaultProvider()
 
       if (providerRecord?.isActive) {
         const llmInstance = buildLlmProvider(providerRecord)
         const extractor   = new StructuredExtractor(llmInstance)
-        llmModel = providerRecord.defaultModel
+        llmModel = override?.llmModel ?? config?.llmModel ?? providerRecord.defaultModel
         llmProv  = providerRecord.providerType
 
         // ── Step 2a: Auto-detect type ─────────────────────────────────────────
-        if (doc.autoDetectType && !doc.documentType) {
+        if (doc.autoDetectType && !effectiveType) {
           const llmDetectStart = Date.now()
           const detected = await extractor.detectDocumentType(ocrResult.rawText)
           llmTotalMs += Date.now() - llmDetectStart
@@ -152,6 +166,7 @@ export class ProcessDocument {
         autoDetectedType:  autoDetected,
       })
 
+      await this.deliverWebhooks('job.completed', { documentId, jobId: job.id, metadata })
       return metadata
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -161,7 +176,55 @@ export class ProcessDocument {
         completedAt:  new Date(),
       })
       await this.repo.updateDocumentStatus(documentId, 'failed')
+      await this.deliverWebhooks('job.failed', { documentId, jobId: job.id, error: msg })
       throw err
     }
+  }
+
+  private async deliverWebhooks(event: string, payload: Record<string, unknown>): Promise<void> {
+    const webhooks = await this.repo.listActiveWebhooks().catch(() => [])
+    const body     = JSON.stringify({ event, ...payload, ts: new Date().toISOString() })
+
+    await Promise.allSettled(
+      webhooks
+        .filter(w => w.events.includes(event) || w.events.includes('*'))
+        .map(async (wh) => {
+          let status: 'success' | 'failed' = 'failed'
+          let responseStatus: number | undefined
+          let errorMessage: string | undefined
+          try {
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+            if (wh.secret) {
+              const { createHmac } = await import('node:crypto')
+              headers['X-OCR-Signature'] = `sha256=${createHmac('sha256', wh.secret).update(body).digest('hex')}`
+            }
+            const res = await fetch(wh.url, { method: 'POST', headers, body, signal: AbortSignal.timeout(10_000) })
+            responseStatus = res.status
+            status = res.ok ? 'success' : 'failed'
+            if (!res.ok) errorMessage = `HTTP ${res.status}`
+          } catch (e) {
+            errorMessage = e instanceof Error ? e.message : String(e)
+          }
+          await this.repo.createWebhookDelivery({
+            webhookId: wh.id, event, payload: body, status, responseStatus, errorMessage,
+          }).catch(() => {})
+        }),
+    )
+  }
+
+  // If the storage is S3/remote, download to a tmp file so OCR engines can read it
+  private async resolveFilePath(storagePath: string, mimeType: string): Promise<string> {
+    if (this.storage.provider === 'local') return storagePath
+
+    const { writeFile, unlink } = await import('node:fs/promises')
+    const { join } = await import('node:path')
+    const { tmpdir } = await import('node:os')
+    const { randomUUID } = await import('node:crypto')
+
+    const ext     = mimeType === 'application/pdf' ? '.pdf' : '.img'
+    const tmpPath = join(tmpdir(), `ocr-${randomUUID()}${ext}`)
+    const buffer  = await this.storage.read(storagePath)
+    await writeFile(tmpPath, buffer)
+    return tmpPath
   }
 }

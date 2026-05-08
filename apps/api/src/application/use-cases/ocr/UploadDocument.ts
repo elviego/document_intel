@@ -1,6 +1,4 @@
-import { mkdir, writeFile } from 'node:fs/promises'
-import { join, extname } from 'node:path'
-import { randomUUID } from 'node:crypto'
+import type { IFileStorage } from '../../../infrastructure/storage/IFileStorage.js'
 import type { IOcrRepository } from '../../../domain/repositories/IOcrRepository.js'
 import type { OcrDocument, OcrDocumentType } from '../../../domain/entities/OcrDocument.js'
 import { ValidationError } from '../../../shared/errors.js'
@@ -10,40 +8,36 @@ const ALLOWED_MIME = new Set([
   'image/webp', 'application/pdf',
 ])
 
-interface UploadInput {
+export interface UploadInput {
   fileName:       string
   mimeType:       string
   buffer:         Buffer
   autoDetectType: boolean
   documentType?:  OcrDocumentType
   uploadedBy?:    string
-  uploadDir:      string
   maxFileMb:      number
 }
 
 export class UploadDocument {
-  constructor(private readonly repo: IOcrRepository) {}
+  constructor(
+    private readonly repo:    IOcrRepository,
+    private readonly storage: IFileStorage,
+  ) {}
 
   async execute(input: UploadInput): Promise<OcrDocument> {
     if (!ALLOWED_MIME.has(input.mimeType)) {
       throw new ValidationError(`Unsupported file type: ${input.mimeType}. Allowed: PDF, PNG, JPG, TIFF, BMP, WebP`)
     }
-
     const maxBytes = input.maxFileMb * 1024 * 1024
     if (input.buffer.byteLength > maxBytes) {
       throw new ValidationError(`File exceeds maximum size of ${input.maxFileMb} MB`)
     }
 
-    await mkdir(input.uploadDir, { recursive: true })
-
-    const ext      = extname(input.fileName) || '.bin'
-    const safeName = `${randomUUID()}${ext}`
-    const filePath = join(input.uploadDir, safeName)
-    await writeFile(filePath, input.buffer)
+    const { storagePath } = await this.storage.save(input.buffer, input.fileName, input.mimeType)
 
     return this.repo.createDocument({
       fileName:       input.fileName,
-      filePath,
+      filePath:       storagePath,
       fileSizeBytes:  input.buffer.byteLength,
       mimeType:       input.mimeType,
       autoDetectType: input.autoDetectType,

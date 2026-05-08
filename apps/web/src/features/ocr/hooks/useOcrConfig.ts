@@ -93,3 +93,43 @@ export function useUpdateOcrConfig() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ['ocr-configs'] }),
   })
 }
+
+// ── Webhooks ──────────────────────────────────────────────────────────────────
+
+export interface OcrWebhook {
+  id: string; name: string; url: string; secret: string | null
+  events: string[]; isActive: boolean; createdAt: string; updatedAt: string
+}
+
+export function useWebhooks() {
+  return useQuery({
+    queryKey: ['ocr-webhooks'],
+    queryFn:  () => apiClient.get<OcrWebhook[]>('/v1/ocr/webhooks'),
+  })
+}
+
+export function useCreateWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (body: Omit<OcrWebhook, 'id' | 'createdAt' | 'updatedAt'>) =>
+      apiClient.post<OcrWebhook>('/v1/ocr/webhooks', body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ocr-webhooks'] }),
+  })
+}
+
+export function useUpdateWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, ...body }: Partial<OcrWebhook> & { id: string }) =>
+      apiClient.patch<OcrWebhook>(`/v1/ocr/webhooks/${id}`, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['ocr-webhooks'] }),
+  })
+}
+
+export function useDeleteWebhook() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/v1/ocr/webhooks/${id}`),
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['ocr-webhooks'] }),
+  })
+}

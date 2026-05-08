@@ -56,6 +56,7 @@ export interface IOcrRepository {
   findDocumentById(id: string): Promise<OcrDocument | null>
   listDocuments(opts?: { limit?: number; offset?: number; status?: OcrStatus; documentType?: OcrDocumentType }): Promise<{ items: OcrDocument[]; total: number }>
   updateDocumentStatus(id: string, status: OcrStatus, documentType?: OcrDocumentType, pageCount?: number): Promise<void>
+  deleteDocument(id: string): Promise<void>
 
   // Jobs
   createJob(input: CreateJobInput): Promise<OcrJob>
@@ -66,6 +67,12 @@ export interface IOcrRepository {
   // Metrics
   createMetric(input: CreateMetricInput): Promise<OcrMetric>
   listMetrics(opts?: { limit?: number; offset?: number; documentId?: string }): Promise<OcrMetric[]>
+  metricsTrending(days: number, documentType?: OcrDocumentType): Promise<{
+    date: string
+    avgConfidence: number | null
+    count: number
+    avgProcessingMs: number | null
+  }[]>
   metricsAggregate(): Promise<{
     totalDocuments: number
     avgConfidence:  number | null
@@ -88,4 +95,24 @@ export interface IOcrRepository {
   listConfigs(): Promise<OcrDocumentConfig[]>
   findConfigByType(documentType: OcrDocumentType): Promise<OcrDocumentConfig | null>
   upsertConfig(documentType: OcrDocumentType, input: Partial<Omit<OcrDocumentConfig, 'id' | 'documentType' | 'createdAt' | 'updatedAt'>>): Promise<OcrDocumentConfig>
+
+  // Webhooks
+  listWebhooks(): Promise<OcrWebhook[]>
+  findWebhookById(id: string): Promise<OcrWebhook | null>
+  createWebhook(input: Omit<OcrWebhook, 'id' | 'createdAt' | 'updatedAt'>): Promise<OcrWebhook>
+  updateWebhook(id: string, input: Partial<Omit<OcrWebhook, 'id' | 'createdAt' | 'updatedAt'>>): Promise<OcrWebhook>
+  deleteWebhook(id: string): Promise<void>
+  listActiveWebhooks(): Promise<OcrWebhook[]>
+  createWebhookDelivery(input: { webhookId: string; event: string; payload: string; status: 'success' | 'failed'; responseStatus?: number; errorMessage?: string }): Promise<void>
+}
+
+export interface OcrWebhook {
+  id:        string
+  name:      string
+  url:       string
+  secret:    string | null
+  events:    string[]   // ['job.completed', 'job.failed']
+  isActive:  boolean
+  createdAt: Date
+  updatedAt: Date
 }
