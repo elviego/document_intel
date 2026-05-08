@@ -201,6 +201,93 @@ export const wages = pgTable('wages', {
   createdAt:         timestamp('created_at').defaultNow().notNull(),
 })
 
+// ─── OCR Module ──────────────────────────────────────────────────────────────
+export const ocrDocumentTypeEnum = pgEnum('ocr_document_type', [
+  'invoice', 'receipt', 'contract', 'id_document', 'medical', 'bank_statement', 'form', 'other',
+])
+export const ocrStatusEnum       = pgEnum('ocr_status',        ['pending', 'processing', 'completed', 'failed'])
+export const llmProviderTypeEnum = pgEnum('llm_provider_type', ['openai', 'anthropic', 'ollama', 'deepseek', 'custom'])
+
+export const ocrLlmProviders = pgTable('ocr_llm_providers', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  name:         text('name').notNull(),
+  providerType: llmProviderTypeEnum('provider_type').notNull(),
+  baseUrl:      text('base_url'),
+  apiKey:       text('api_key'),
+  defaultModel: text('default_model').notNull(),
+  isActive:     boolean('is_active').notNull().default(true),
+  isDefault:    boolean('is_default').notNull().default(false),
+  config:       text('config'),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
+  updatedAt:    timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const ocrDocumentConfigs = pgTable('ocr_document_configs', {
+  id:                   uuid('id').primaryKey().defaultRandom(),
+  documentType:         ocrDocumentTypeEnum('document_type').notNull().unique(),
+  ocrEngine:            text('ocr_engine').notNull().default('tesseract'),
+  ocrLanguage:          text('ocr_language').notNull().default('por+eng'),
+  ocrDpi:               integer('ocr_dpi').default(300),
+  preprocessingEnabled: boolean('preprocessing_enabled').notNull().default(true),
+  llmProviderId:        uuid('llm_provider_id').references(() => ocrLlmProviders.id),
+  llmModel:             text('llm_model'),
+  llmPromptTemplate:    text('llm_prompt_template'),
+  structuredSchema:     text('structured_schema'),
+  createdAt:            timestamp('created_at').defaultNow().notNull(),
+  updatedAt:            timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const ocrDocuments = pgTable('ocr_documents', {
+  id:             uuid('id').primaryKey().defaultRandom(),
+  fileName:       text('file_name').notNull(),
+  filePath:       text('file_path').notNull(),
+  fileSizeBytes:  integer('file_size_bytes').notNull(),
+  mimeType:       text('mime_type').notNull(),
+  pageCount:      integer('page_count'),
+  documentType:   ocrDocumentTypeEnum('document_type'),
+  autoDetectType: boolean('auto_detect_type').notNull().default(true),
+  status:         ocrStatusEnum('status').notNull().default('pending'),
+  uploadedBy:     uuid('uploaded_by').references(() => users.id),
+  createdAt:      timestamp('created_at').defaultNow().notNull(),
+  updatedAt:      timestamp('updated_at').defaultNow().notNull(),
+})
+
+export const ocrJobs = pgTable('ocr_jobs', {
+  id:               uuid('id').primaryKey().defaultRandom(),
+  documentId:       uuid('document_id').notNull().references(() => ocrDocuments.id, { onDelete: 'cascade' }),
+  status:           ocrStatusEnum('status').notNull().default('pending'),
+  ocrEngine:        text('ocr_engine').notNull().default('tesseract'),
+  ocrEngineVersion: text('ocr_engine_version'),
+  llmProviderId:    uuid('llm_provider_id').references(() => ocrLlmProviders.id),
+  llmModel:         text('llm_model'),
+  rawText:          text('raw_text'),
+  metadata:         text('metadata'),
+  errorMessage:     text('error_message'),
+  startedAt:        timestamp('started_at'),
+  completedAt:      timestamp('completed_at'),
+  createdAt:        timestamp('created_at').defaultNow().notNull(),
+})
+
+export const ocrMetrics = pgTable('ocr_metrics', {
+  id:                uuid('id').primaryKey().defaultRandom(),
+  jobId:             uuid('job_id').notNull().references(() => ocrJobs.id, { onDelete: 'cascade' }),
+  documentId:        uuid('document_id').notNull().references(() => ocrDocuments.id, { onDelete: 'cascade' }),
+  overallConfidence: numeric('overall_confidence', { precision: 5, scale: 4 }),
+  pageConfidences:   text('page_confidences'),
+  characterCount:    integer('character_count'),
+  wordCount:         integer('word_count'),
+  processingTimeMs:  integer('processing_time_ms').notNull(),
+  ocrEngine:         text('ocr_engine').notNull(),
+  ocrEngineVersion:  text('ocr_engine_version'),
+  llmModel:          text('llm_model'),
+  llmProvider:       text('llm_provider'),
+  llmTokensUsed:     integer('llm_tokens_used'),
+  documentType:      ocrDocumentTypeEnum('document_type'),
+  autoDetectedType:  boolean('auto_detected_type'),
+  createdAt:         timestamp('created_at').defaultNow().notNull(),
+})
+
+// ─── Salary Entries ───────────────────────────────────────────────────────────
 export const salaryEntries = pgTable('salary_entries', {
   id:                  uuid('id').primaryKey().defaultRandom(),
   schoolYearId:        uuid('school_year_id').notNull().references(() => schoolYears.id),

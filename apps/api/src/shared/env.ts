@@ -11,6 +11,9 @@ const schema = z.object({
   APP_URL:        z.string().url().default('http://localhost:3000'),
   RESEND_API_KEY: z.string().default(''),
   EMAIL_FROM:     z.string().default('noreply@triboverde.pt'),
+  // OCR module
+  OCR_UPLOAD_DIR: z.string().default('uploads/ocr'),
+  OCR_MAX_FILE_MB: z.coerce.number().default(50),
 })
 
 const parsed = schema.safeParse(process.env)

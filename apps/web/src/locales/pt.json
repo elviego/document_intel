@@ -13,7 +13,8 @@
     "activities": "Atividades",
     "users": "Utilizadores",
     "students": "Crianças",
-    "enrollmentPlans": "Planos de Matrícula"
+    "enrollmentPlans": "Planos de Matrícula",
+    "ocr": "OCR / Documentos"
   },
   "common": {
     "save": "Guardar",
@@ -137,5 +138,38 @@
     "email": "Email",
     "role": "Perfil",
     "empty": "Nenhum utilizador registado."
+  },
+  "ocr": {
+    "title": "OCR / Documentos",
+    "documents": "documentos",
+    "settings": "Configurações",
+    "metricsNav": "Métricas",
+    "metrics": "Métricas OCR",
+    "metricsSubtitle": "Confiança, tempos de processamento e modelos utilizados",
+    "uploadDocument": "Carregar Documento",
+    "upload": "Carregar",
+    "autoDetectType": "Detetar tipo de documento automaticamente com IA",
+    "documentType": "Tipo de documento",
+    "processAfterUpload": "Processar imediatamente após o carregamento",
+    "status": "Estado",
+    "detection": "Deteção",
+    "pages": "Páginas",
+    "size": "Tamanho",
+    "fileName": "Ficheiro",
+    "uploadedAt": "Carregado",
+    "processedAt": "Processado",
+    "confidence": "Confiança",
+    "llmModel": "Modelo LLM",
+    "back": "Voltar aos documentos",
+    "process": "Executar OCR",
+    "reProcess": "Re-processar",
+    "results": "Resultados OCR",
+    "notYetProcessed": "Este documento ainda não foi processado.",
+    "processingMessage": "Processamento OCR em curso. A página atualiza automaticamente…",
+    "processingFailed": "Processamento falhou",
+    "noDocuments": "Nenhum documento carregado ainda.",
+    "uploadFirst": "Carregar o primeiro documento",
+    "configTitle": "Configuração OCR",
+    "configSubtitle": "Gerir fornecedores LLM e configurações por tipo de documento"
   }
 }

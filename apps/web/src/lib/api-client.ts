@@ -32,6 +32,27 @@ export class ApiError extends Error {
   }
 }
 
+async function requestForm<T>(path: string, body: FormData): Promise<T> {
+  const token = localStorage.getItem('access_token')
+  const url = `${BASE_URL}${path}`
+  let res: Response
+  try {
+    res = await fetch(url, {
+      method:  'POST',
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+      body,
+    })
+  } catch (err) {
+    throw new Error(`Network error — cannot reach API at ${BASE_URL || 'same origin'}. Check your connection.`)
+  }
+  if (!res.ok) {
+    const b   = await res.json().catch(() => ({}))
+    const msg = b.message ?? b.error ?? `${res.status} ${res.statusText}`
+    throw new ApiError(res.status, b.code ?? 'UNKNOWN', msg, b.reqId)
+  }
+  return res.json() as Promise<T>
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('access_token')
   const url = `${BASE_URL}${path}`
@@ -73,9 +94,10 @@ export function errorMessage(err: unknown): string {
 }
 
 export const apiClient = {
-  get:    <T>(path: string)                => request<T>(path),
-  post:   <T>(path: string, body: unknown) => request<T>(path, { method: 'POST',   body: JSON.stringify(body) }),
-  put:    <T>(path: string, body: unknown) => request<T>(path, { method: 'PUT',    body: JSON.stringify(body) }),
-  patch:  <T>(path: string, body: unknown) => request<T>(path, { method: 'PATCH',  body: JSON.stringify(body) }),
-  delete: <T>(path: string)                => request<T>(path, { method: 'DELETE' }),
+  get:      <T>(path: string)                   => request<T>(path),
+  post:     <T>(path: string, body: unknown)    => request<T>(path, { method: 'POST',   body: JSON.stringify(body) }),
+  put:      <T>(path: string, body: unknown)    => request<T>(path, { method: 'PUT',    body: JSON.stringify(body) }),
+  patch:    <T>(path: string, body: unknown)    => request<T>(path, { method: 'PATCH',  body: JSON.stringify(body) }),
+  delete:   <T>(path: string)                   => request<T>(path, { method: 'DELETE' }),
+  postForm: <T>(path: string, body: FormData)   => requestForm<T>(path, body),
 }

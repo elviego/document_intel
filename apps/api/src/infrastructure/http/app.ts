@@ -20,6 +20,8 @@ import { activityRoutes } from './routes/activities.js'
 import { enrollmentPlanRoutes } from './routes/enrollment-plans.js'
 import { studentRoutes } from './routes/students.js'
 import { wageRoutes } from './routes/wages.js'
+import { ocrDocumentRoutes } from './routes/ocr-documents.js'
+import { ocrConfigRoutes } from './routes/ocr-config.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -116,6 +118,8 @@ export async function buildApp() {
   await app.register(enrollmentPlanRoutes,{ prefix: '/v1/enrollment-plans' })
   await app.register(studentRoutes,       { prefix: '/v1/students' })
   await app.register(wageRoutes,          { prefix: '/v1/wages' })
+  await app.register(ocrDocumentRoutes,   { prefix: '/v1/ocr/documents' })
+  await app.register(ocrConfigRoutes,     { prefix: '/v1/ocr' })
 
   return app
 }

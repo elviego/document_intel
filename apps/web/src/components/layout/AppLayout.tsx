@@ -13,6 +13,7 @@ const navItems = [
   { to: '/budget',        key: 'budget' },
   { to: '/employees',     key: 'employees' },
   { to: '/activities',    key: 'activities' },
+  { to: '/ocr',           key: 'ocr' },
 ] as const
 
 const adminItems = [

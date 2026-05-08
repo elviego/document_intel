@@ -25,6 +25,12 @@ const ActivitiesPage      = lazy(() => import('@/features/activities/ActivitiesP
 const StudentsPage        = lazy(() => import('@/features/students/StudentsPage'))
 const EnrollmentPlansPage = lazy(() => import('@/features/enrollment-plans/EnrollmentPlansPage'))
 
+// OCR pages
+const OcrPage         = lazy(() => import('@/features/ocr/OcrPage'))
+const OcrDocumentPage = lazy(() => import('@/features/ocr/OcrDocumentPage'))
+const OcrConfigPage   = lazy(() => import('@/features/ocr/OcrConfigPage'))
+const OcrMetricsPage  = lazy(() => import('@/features/ocr/OcrMetricsPage'))
+
 // Admin pages
 const CategoriesPage   = lazy(() => import('@/features/categories/CategoriesPage'))
 const BankAccountsPage = lazy(() => import('@/features/bank-accounts/BankAccountsPage'))
@@ -54,6 +60,12 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
       { path: 'employees',         element: s(EmployeesPage) },
       { path: 'activities',        element: s(ActivitiesPage) },
       { path: 'students',          element: s(StudentsPage) },
+      // Admin-only
+      // OCR module
+      { path: 'ocr',              element: s(OcrPage) },
+      { path: 'ocr/:id',          element: s(OcrDocumentPage) },
+      { path: 'ocr/config',       element: <RequireAuth role="admin">{s(OcrConfigPage)}</RequireAuth> },
+      { path: 'ocr/metrics',      element: <RequireAuth role="admin">{s(OcrMetricsPage)}</RequireAuth> },
       // Admin-only
       { path: 'enrollment-plans',  element: <RequireAuth role="admin">{s(EnrollmentPlansPage)}</RequireAuth> },
       { path: 'categories',        element: <RequireAuth role="admin">{s(CategoriesPage)}</RequireAuth> },
