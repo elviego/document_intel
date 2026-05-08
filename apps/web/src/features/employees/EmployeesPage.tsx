@@ -191,9 +191,16 @@ function WageModal({ open, onClose, employee }: {
               onChange={e => { setForm(f => ({ ...f, dependents: parseInt(e.target.value) || 0 })); setPreview(null) }} />
           </div>
 
-          <Button variant="secondary" onClick={handlePreview} disabled={previewing || !form.grossAmount}>
-            {previewing ? 'A calcular…' : 'Calcular'}
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={handlePreview} disabled={previewing || !form.grossAmount}>
+              {previewing ? 'A calcular…' : 'Calcular'}
+            </Button>
+            <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.grossAmount}>
+              {saveMutation.isPending ? 'A guardar…' : 'Guardar vencimento'}
+            </Button>
+          </div>
+          {saveMutation.isError   && <p className="text-sm text-red-600">{errorMessage(saveMutation.error)}</p>}
+          {saveMutation.isSuccess && <p className="text-sm text-green-600">Vencimento guardado.</p>}
 
           {preview && (
             <div className="mt-2 space-y-1">
@@ -210,23 +217,16 @@ function WageModal({ open, onClose, employee }: {
               <p className="text-xs text-gray-400 pt-1">
                 Tabela IRS Continente 2026 (verificar anualmente em portaldasfinancas.gov.pt)
               </p>
-
-              {/* Save section */}
-              <div className="pt-2 border-t border-gray-200 flex items-end gap-3">
-                <Input label="Válido a partir de" type="date" value={form.effectiveFrom}
-                  onChange={e => setForm(f => ({ ...f, effectiveFrom: e.target.value }))} />
-                <Input label="Notas" value={form.notes}
-                  onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
-                <div className="pb-0.5">
-                  <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
-                    {saveMutation.isPending ? 'A guardar…' : 'Guardar'}
-                  </Button>
-                </div>
-              </div>
-              {saveMutation.isError && <p className="text-sm text-red-600">{errorMessage(saveMutation.error)}</p>}
-              {saveMutation.isSuccess && <p className="text-sm text-green-600">Vencimento guardado.</p>}
             </div>
           )}
+
+          {/* Effective date + notes always visible */}
+          <div className="pt-2 border-t border-gray-200 flex items-end gap-3">
+            <Input label="Válido a partir de" type="date" value={form.effectiveFrom}
+              onChange={e => setForm(f => ({ ...f, effectiveFrom: e.target.value }))} />
+            <Input label="Notas" value={form.notes}
+              onChange={e => setForm(f => ({ ...f, notes: e.target.value }))} />
+          </div>
         </div>
 
         {/* History */}
@@ -267,6 +267,64 @@ function Row({ label, value, bold, red, green }: { label: string; value: string;
       <span className={`text-gray-500 py-0.5 ${bold ? 'font-semibold text-gray-700' : ''}`}>{label}</span>
       <span className={`text-right py-0.5 font-mono ${bold ? 'font-semibold' : ''} ${red ? 'text-red-600' : ''} ${green ? 'text-green-700' : 'text-gray-800'}`}>{value}</span>
     </>
+  )
+}
+
+// ─── Employee row with lazy-loaded latest wage ────────────────────────────────
+function EmployeeRow({ emp, isAdmin, onWage, onEdit, onToggle, onDelete }: {
+  emp: EmployeeDTO
+  isAdmin: boolean
+  onWage: () => void
+  onEdit: () => void
+  onToggle: () => void
+  onDelete: () => void
+}) {
+  const { data: latestWage } = useQuery({
+    queryKey: ['wages', emp.id, 'latest'],
+    queryFn:  () => apiClient.get<WageDTO | null>(`/v1/wages/employee/${emp.id}/latest`),
+  })
+
+  return (
+    <tr className="hover:bg-gray-50 group">
+      <td className="py-2 pr-4 font-medium text-gray-900">{emp.fullName}</td>
+      <td className="py-2 pr-4 text-gray-600">{emp.position || '—'}</td>
+      <td className="py-2 pr-4">
+        <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
+          {CONTRACT_TYPES.find(c => c.value === emp.contractType)?.label ?? emp.contractType}
+        </span>
+      </td>
+      <td className="py-2 pr-4 text-right font-mono text-gray-700">
+        {eur(latestWage?.grossAmount ?? emp.baseSalary)}
+      </td>
+      <td className="py-2 pr-4 text-right font-mono">
+        {latestWage
+          ? <span className="text-green-700 font-medium">{eur(latestWage.netAmount)}</span>
+          : <button onClick={onWage} className="text-xs text-gray-400 hover:text-brand-600 underline">calcular</button>
+        }
+      </td>
+      <td className="py-2 pr-4 text-gray-500 text-xs">
+        {emp.email && <div>{emp.email}</div>}
+        {emp.phone && <div>{emp.phone}</div>}
+      </td>
+      <td className="py-2">
+        <div className="flex gap-2">
+          <button onClick={onWage}
+            className="text-xs text-green-600 hover:text-green-800 font-medium">Salário</button>
+          {isAdmin && (
+            <>
+              <button onClick={onEdit}
+                className="text-xs text-brand-600 hover:text-brand-800">Editar</button>
+              <button onClick={onToggle}
+                className="text-xs text-gray-400 hover:text-gray-600 hidden group-hover:inline">
+                {emp.isActive ? 'Desativar' : 'Ativar'}
+              </button>
+              <button onClick={onDelete}
+                className="text-xs text-red-400 hover:text-red-600 hidden group-hover:inline">Eliminar</button>
+            </>
+          )}
+        </div>
+      </td>
+    </tr>
   )
 }
 
@@ -325,49 +383,23 @@ export default function EmployeesPage() {
                 <th className="pb-2 pr-4 font-medium">Nome</th>
                 <th className="pb-2 pr-4 font-medium">Cargo</th>
                 <th className="pb-2 pr-4 font-medium">Contrato</th>
-                <th className="pb-2 pr-4 font-medium text-right">Salário base</th>
+                <th className="pb-2 pr-4 font-medium text-right">Bruto</th>
+                <th className="pb-2 pr-4 font-medium text-right">Líquido</th>
                 <th className="pb-2 pr-4 font-medium">Contacto</th>
-                <th className="pb-2 pr-4 font-medium">Início</th>
                 <th className="pb-2 font-medium" />
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {visible.map(emp => (
-                <tr key={emp.id} className="hover:bg-gray-50 group">
-                  <td className="py-2 pr-4 font-medium text-gray-900">{emp.fullName}</td>
-                  <td className="py-2 pr-4 text-gray-600">{emp.position || '—'}</td>
-                  <td className="py-2 pr-4">
-                    <span className="inline-flex items-center rounded-full bg-gray-100 px-2 py-0.5 text-xs font-medium text-gray-700">
-                      {CONTRACT_TYPES.find(c => c.value === emp.contractType)?.label ?? emp.contractType}
-                    </span>
-                  </td>
-                  <td className="py-2 pr-4 text-right font-mono text-gray-700">
-                    {eur(emp.baseSalary)}
-                  </td>
-                  <td className="py-2 pr-4 text-gray-500 text-xs">
-                    {emp.email && <div>{emp.email}</div>}
-                    {emp.phone && <div>{emp.phone}</div>}
-                  </td>
-                  <td className="py-2 pr-4 text-gray-500">{emp.startDate?.slice(0, 10) ?? '—'}</td>
-                  <td className="py-2">
-                    <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      <button onClick={() => setWageTarget(emp)}
-                        className="text-xs text-green-600 hover:text-green-800 font-medium">Salário</button>
-                      {isAdmin && (
-                        <>
-                          <button onClick={() => { setEditing(emp); setShowModal(true) }}
-                            className="text-xs text-brand-600 hover:text-brand-800">Editar</button>
-                          <button onClick={() => toggleActive.mutate(emp)}
-                            className="text-xs text-gray-400 hover:text-gray-600">
-                            {emp.isActive ? 'Desativar' : 'Ativar'}
-                          </button>
-                          <button onClick={() => { if (confirm(`Eliminar ${emp.fullName}?`)) deleteMutation.mutate(emp.id) }}
-                            className="text-xs text-red-400 hover:text-red-600">Eliminar</button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                <EmployeeRow
+                  key={emp.id}
+                  emp={emp}
+                  isAdmin={isAdmin}
+                  onWage={() => setWageTarget(emp)}
+                  onEdit={() => { setEditing(emp); setShowModal(true) }}
+                  onToggle={() => toggleActive.mutate(emp)}
+                  onDelete={() => { if (confirm(`Eliminar ${emp.fullName}?`)) deleteMutation.mutate(emp.id) }}
+                />
               ))}
             </tbody>
           </table>

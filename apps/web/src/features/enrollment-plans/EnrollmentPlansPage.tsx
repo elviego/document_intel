@@ -137,6 +137,11 @@ export default function EnrollmentPlansPage() {
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<EnrollmentPlanDTO | null>(null)
 
+  const seedMutation = useMutation({
+    mutationFn: () => apiClient.post('/v1/enrollment-plans/seed', {}),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['enrollment-plans'] }),
+  })
+
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
       apiClient.put(`/v1/enrollment-plans/${id}`, { isActive }),
@@ -161,6 +166,16 @@ export default function EnrollmentPlansPage() {
       <div className="flex-1 overflow-auto px-8 pb-8">
         {isLoading ? (
           <p className="text-sm text-gray-400 py-4">A carregar…</p>
+        ) : !isLoading && plans.length === 0 ? (
+          <div className="text-center py-16 space-y-4">
+            <p className="text-sm text-gray-500">Nenhum plano de matrícula criado ainda.</p>
+            {isAdmin && (
+              <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending}>
+                {seedMutation.isPending ? 'A criar…' : 'Criar planos padrão'}
+              </Button>
+            )}
+            {seedMutation.isError && <p className="text-sm text-red-600">Erro ao criar planos.</p>}
+          </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">
             {plans.map(plan => {
