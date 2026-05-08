@@ -186,6 +186,155 @@ export interface CreateActivityDTO {
   capacity?: number
 }
 
+// ─── Enrollment Plan ─────────────────────────────────────────────────────────
+export type ScheduleType = 'full_time' | 'part_time_days' | 'part_time_mornings' | 'holiday' | 'custom'
+export type BillingCycle = 'monthly' | 'trimestral' | 'annual'
+
+export interface EnrollmentPlanDTO {
+  id: string
+  name: string
+  description: string | null
+  scheduleType: ScheduleType
+  daysPerWeek: number | null
+  morningsOnly: boolean
+  billingCycle: BillingCycle
+  baseAmount: number
+  discountPercent: number | null
+  discountFixed: number | null
+  isPreset: boolean
+  isActive: boolean
+}
+
+export interface CreateEnrollmentPlanDTO {
+  name: string
+  description?: string
+  scheduleType: ScheduleType
+  daysPerWeek?: number
+  morningsOnly?: boolean
+  billingCycle?: BillingCycle
+  baseAmount: number
+  discountPercent?: number
+  discountFixed?: number
+}
+
+// ─── Student (extended child profile) ────────────────────────────────────────
+export interface StudentDTO {
+  id: string
+  fullName: string
+  schoolYearId: string
+  tuitionType: string
+  isActive: boolean
+  // Personal
+  firstName: string | null
+  lastName: string | null
+  birthDate: string | null
+  nationality: string | null
+  nif: string | null
+  address: string | null
+  bloodType: string | null
+  allergies: string | null
+  medicalNotes: string | null
+  photoConsent: boolean
+  enrollmentDate: string | null
+  plan: EnrollmentPlanDTO | null
+  // Guardian 1
+  parent1FirstName: string | null
+  parent1LastName: string | null
+  parent1Phone: string | null
+  parent1Email: string | null
+  parent1Relation: string | null
+  // Guardian 2
+  parent2FirstName: string | null
+  parent2LastName: string | null
+  parent2Phone: string | null
+  parent2Email: string | null
+  parent2Relation: string | null
+  // Emergency
+  emergencyContact: string | null
+  emergencyPhone: string | null
+  notes: string | null
+}
+
+export interface CreateStudentDTO {
+  fullName: string
+  schoolYearId: string
+  tuitionType: string
+  firstName?: string
+  lastName?: string
+  birthDate?: string
+  nationality?: string
+  nif?: string
+  address?: string
+  bloodType?: string
+  allergies?: string
+  medicalNotes?: string
+  photoConsent?: boolean
+  enrollmentDate?: string
+  planId?: string
+  parent1FirstName?: string
+  parent1LastName?: string
+  parent1Phone?: string
+  parent1Email?: string
+  parent1Relation?: string
+  parent2FirstName?: string
+  parent2LastName?: string
+  parent2Phone?: string
+  parent2Email?: string
+  parent2Relation?: string
+  emergencyContact?: string
+  emergencyPhone?: string
+  notes?: string
+}
+
+// ─── Wages ───────────────────────────────────────────────────────────────────
+export type WageContractType  = 'sem_termo' | 'a_termo' | 'rec_verdes' | 'horas'
+export type WageMaritalStatus = 'nao_casado' | 'casado_2_titulares' | 'casado_1_titular'
+
+export interface WageDTO {
+  id: string
+  employeeId: string
+  effectiveFrom: string
+  grossAmount: number
+  contractType: WageContractType
+  maritalStatus: WageMaritalStatus
+  dependents: number
+  irsRate: number
+  irsAmount: number
+  ssEmployeeRate: number
+  ssEmployeeAmount: number
+  ssEmployerRate: number
+  ssEmployerAmount: number
+  netAmount: number
+  totalEmployerCost: number
+  notes: string | null
+  createdAt: string
+}
+
+export interface CreateWageDTO {
+  employeeId: string
+  effectiveFrom: string
+  grossAmount: number
+  contractType: WageContractType
+  maritalStatus: WageMaritalStatus
+  dependents: number
+  notes?: string
+}
+
+export interface WagePreviewDTO {
+  grossAmount: number
+  contractType: WageContractType
+  maritalStatus: WageMaritalStatus
+  dependents: number
+  irsRate: number
+  irsAmount: number
+  ssEmployeeRate: number
+  ssEmployeeAmount: number
+  ssEmployerRate: number
+  ssEmployerAmount: number
+  netAmount: number
+  totalEmployerCost: number
+}
+
 // ─── Import ──────────────────────────────────────────────────────────────────
 export interface ImportRowDTO {
   rowIndex: number

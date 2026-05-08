@@ -20,8 +20,10 @@ const SummaryPage      = lazy(() => import('@/features/summary/SummaryPage'))
 const SalariesPage     = lazy(() => import('@/features/salaries/SalariesPage'))
 const MealsPage        = lazy(() => import('@/features/meals/MealsPage'))
 const BudgetPage       = lazy(() => import('@/features/budget/BudgetPage'))
-const EmployeesPage    = lazy(() => import('@/features/employees/EmployeesPage'))
-const ActivitiesPage   = lazy(() => import('@/features/activities/ActivitiesPage'))
+const EmployeesPage       = lazy(() => import('@/features/employees/EmployeesPage'))
+const ActivitiesPage      = lazy(() => import('@/features/activities/ActivitiesPage'))
+const StudentsPage        = lazy(() => import('@/features/students/StudentsPage'))
+const EnrollmentPlansPage = lazy(() => import('@/features/enrollment-plans/EnrollmentPlansPage'))
 
 // Admin pages
 const CategoriesPage   = lazy(() => import('@/features/categories/CategoriesPage'))
@@ -49,13 +51,15 @@ export const router: ReturnType<typeof createBrowserRouter> = createBrowserRoute
       { path: 'salaries',       element: <RequireAuth role="admin">{s(SalariesPage)}</RequireAuth> },
       { path: 'meals',          element: s(MealsPage) },
       { path: 'budget',         element: s(BudgetPage) },
-      { path: 'employees',      element: s(EmployeesPage) },
-      { path: 'activities',     element: s(ActivitiesPage) },
+      { path: 'employees',         element: s(EmployeesPage) },
+      { path: 'activities',        element: s(ActivitiesPage) },
+      { path: 'students',          element: s(StudentsPage) },
       // Admin-only
-      { path: 'categories',     element: <RequireAuth role="admin">{s(CategoriesPage)}</RequireAuth> },
-      { path: 'bank-accounts',  element: <RequireAuth role="admin">{s(BankAccountsPage)}</RequireAuth> },
-      { path: 'school-years',   element: <RequireAuth role="admin">{s(SchoolYearsPage)}</RequireAuth> },
-      { path: 'users',          element: <RequireAuth role="admin">{s(UsersPage)}</RequireAuth> },
+      { path: 'enrollment-plans',  element: <RequireAuth role="admin">{s(EnrollmentPlansPage)}</RequireAuth> },
+      { path: 'categories',        element: <RequireAuth role="admin">{s(CategoriesPage)}</RequireAuth> },
+      { path: 'bank-accounts',     element: <RequireAuth role="admin">{s(BankAccountsPage)}</RequireAuth> },
+      { path: 'school-years',      element: <RequireAuth role="admin">{s(SchoolYearsPage)}</RequireAuth> },
+      { path: 'users',             element: <RequireAuth role="admin">{s(UsersPage)}</RequireAuth> },
     ],
   },
   { path: '*', element: <Navigate to="/dashboard" replace /> },

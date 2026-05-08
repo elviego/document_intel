@@ -11,7 +11,9 @@
     "schoolYears": "Anos Letivos",
     "employees": "Funcionários",
     "activities": "Atividades",
-    "users": "Utilizadores"
+    "users": "Utilizadores",
+    "students": "Crianças",
+    "enrollmentPlans": "Planos de Matrícula"
   },
   "common": {
     "save": "Guardar",

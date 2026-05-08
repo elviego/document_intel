@@ -3,7 +3,7 @@
  * Source of truth for type-safe queries; never edit this without a matching migration.
  */
 import {
-  pgTable, uuid, text, numeric, boolean, timestamp, integer, pgEnum, date,
+  pgTable, uuid, text, numeric, boolean, timestamp, integer, pgEnum, date, index,
 } from 'drizzle-orm/pg-core'
 
 // ─── Enums ──────────────────────────────────────────────────────────────────
@@ -32,6 +32,22 @@ export const schoolYears = pgTable('school_years', {
   startDate: date('start_date').notNull(),
   endDate:   date('end_date').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
+})
+
+export const enrollmentPlans = pgTable('enrollment_plans', {
+  id:              uuid('id').primaryKey().defaultRandom(),
+  name:            text('name').notNull(),
+  description:     text('description'),
+  scheduleType:    text('schedule_type').notNull().default('custom'),
+  daysPerWeek:     integer('days_per_week'),
+  morningsOnly:    boolean('mornings_only').notNull().default(false),
+  billingCycle:    text('billing_cycle').notNull().default('monthly'),
+  baseAmount:      numeric('base_amount', { precision: 10, scale: 2 }).notNull().default('0'),
+  discountPercent: numeric('discount_percent', { precision: 5, scale: 2 }),
+  discountFixed:   numeric('discount_fixed', { precision: 10, scale: 2 }),
+  isPreset:        boolean('is_preset').notNull().default(false),
+  isActive:        boolean('is_active').notNull().default(true),
+  createdAt:       timestamp('created_at').defaultNow().notNull(),
 })
 
 export const bankAccounts = pgTable('bank_accounts', {
@@ -76,11 +92,40 @@ export const budgetEntries = pgTable('budget_entries', {
 })
 
 export const children = pgTable('children', {
-  id:           uuid('id').primaryKey().defaultRandom(),
-  fullName:     text('full_name').notNull(),
-  schoolYearId: uuid('school_year_id').notNull().references(() => schoolYears.id),
-  tuitionType:  text('tuition_type').notNull(),
-  isActive:     boolean('is_active').notNull().default(true),
+  id:              uuid('id').primaryKey().defaultRandom(),
+  fullName:        text('full_name').notNull(),
+  schoolYearId:    uuid('school_year_id').notNull().references(() => schoolYears.id),
+  tuitionType:     text('tuition_type').notNull(),
+  isActive:        boolean('is_active').notNull().default(true),
+  // Extended profile
+  firstName:       text('first_name'),
+  lastName:        text('last_name'),
+  birthDate:       date('birth_date'),
+  nationality:     text('nationality').default('Portuguesa'),
+  nif:             text('nif'),
+  address:         text('address'),
+  bloodType:       text('blood_type'),
+  allergies:       text('allergies'),
+  medicalNotes:    text('medical_notes'),
+  photoConsent:    boolean('photo_consent').notNull().default(false),
+  enrollmentDate:  date('enrollment_date'),
+  planId:          uuid('plan_id').references(() => enrollmentPlans.id),
+  // Parent / guardian 1
+  parent1FirstName: text('parent1_first_name'),
+  parent1LastName:  text('parent1_last_name'),
+  parent1Phone:     text('parent1_phone'),
+  parent1Email:     text('parent1_email'),
+  parent1Relation:  text('parent1_relation').default('Mãe/Pai'),
+  // Parent / guardian 2
+  parent2FirstName: text('parent2_first_name'),
+  parent2LastName:  text('parent2_last_name'),
+  parent2Phone:     text('parent2_phone'),
+  parent2Email:     text('parent2_email'),
+  parent2Relation:  text('parent2_relation'),
+  // Emergency contact
+  emergencyContact: text('emergency_contact'),
+  emergencyPhone:   text('emergency_phone'),
+  notes:            text('notes'),
 })
 
 export const mealPricing = pgTable('meal_pricing', {
@@ -134,6 +179,26 @@ export const studentActivities = pgTable('student_activities', {
   studentId:  uuid('student_id').notNull().references(() => children.id),
   activityId: uuid('activity_id').notNull().references(() => activities.id),
   enrolledAt: timestamp('enrolled_at').defaultNow().notNull(),
+})
+
+export const wages = pgTable('wages', {
+  id:                uuid('id').primaryKey().defaultRandom(),
+  employeeId:        uuid('employee_id').notNull().references(() => employees.id, { onDelete: 'cascade' }),
+  effectiveFrom:     date('effective_from').notNull(),
+  grossAmount:       numeric('gross_amount',        { precision: 12, scale: 2 }).notNull(),
+  contractType:      text('contract_type').notNull().default('sem_termo'),
+  maritalStatus:     text('marital_status').notNull().default('nao_casado'),
+  dependents:        integer('dependents').notNull().default(0),
+  irsRate:           numeric('irs_rate',            { precision: 6,  scale: 4 }).notNull().default('0'),
+  irsAmount:         numeric('irs_amount',          { precision: 12, scale: 2 }).notNull().default('0'),
+  ssEmployeeRate:    numeric('ss_employee_rate',    { precision: 6,  scale: 4 }).notNull().default('0'),
+  ssEmployeeAmount:  numeric('ss_employee_amount',  { precision: 12, scale: 2 }).notNull().default('0'),
+  ssEmployerRate:    numeric('ss_employer_rate',    { precision: 6,  scale: 4 }).notNull().default('0'),
+  ssEmployerAmount:  numeric('ss_employer_amount',  { precision: 12, scale: 2 }).notNull().default('0'),
+  netAmount:         numeric('net_amount',          { precision: 12, scale: 2 }).notNull().default('0'),
+  totalEmployerCost: numeric('total_employer_cost', { precision: 12, scale: 2 }).notNull().default('0'),
+  notes:             text('notes'),
+  createdAt:         timestamp('created_at').defaultNow().notNull(),
 })
 
 export const salaryEntries = pgTable('salary_entries', {

@@ -9,16 +9,18 @@ const navItems = [
   { to: '/summary',       key: 'summary' },
   { to: '/salaries',      key: 'salaries' },
   { to: '/meals',         key: 'meals' },
+  { to: '/students',      key: 'students' },
   { to: '/budget',        key: 'budget' },
   { to: '/employees',     key: 'employees' },
   { to: '/activities',    key: 'activities' },
 ] as const
 
 const adminItems = [
-  { to: '/categories',    key: 'categories' },
-  { to: '/bank-accounts', key: 'bankAccounts' },
-  { to: '/school-years',  key: 'schoolYears' },
-  { to: '/users',         key: 'users' },
+  { to: '/enrollment-plans', key: 'enrollmentPlans' },
+  { to: '/categories',       key: 'categories' },
+  { to: '/bank-accounts',    key: 'bankAccounts' },
+  { to: '/school-years',     key: 'schoolYears' },
+  { to: '/users',            key: 'users' },
 ] as const
 
 export function AppLayout() {

@@ -11,7 +11,9 @@
     "schoolYears": "School Years",
     "employees": "Employees",
     "activities": "Activities",
-    "users": "Users"
+    "users": "Users",
+    "students": "Students",
+    "enrollmentPlans": "Enrollment Plans"
   },
   "common": {
     "save": "Save",
