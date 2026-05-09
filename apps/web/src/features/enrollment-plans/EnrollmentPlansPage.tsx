@@ -29,7 +29,6 @@ function usePlans() {
   })
 }
 
-// ─── Modal ────────────────────────────────────────────────────────────────────
 function PlanModal({ open, onClose, initial }: {
   open: boolean; onClose: () => void; initial: EnrollmentPlanDTO | null
 }) {
@@ -87,8 +86,15 @@ function PlanModal({ open, onClose, initial }: {
         </div>
 
         {showDaysPerWeek && (
-          <Input label="Dias por semana" type="number" value={form.daysPerWeek != null ? String(form.daysPerWeek) : ''}
-            onChange={e => setForm(f => ({ ...f, daysPerWeek: e.target.value ? parseInt(e.target.value) : undefined }))} />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Dias por semana</label>
+            <select value={form.daysPerWeek != null ? String(form.daysPerWeek) : ''}
+              onChange={e => setForm(f => ({ ...f, daysPerWeek: e.target.value ? parseInt(e.target.value) : undefined }))}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+              <option value="">Selecionar…</option>
+              {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} dia{n > 1 ? 's' : ''}</option>)}
+            </select>
+          </div>
         )}
 
         <div className="flex items-center gap-2">
@@ -129,18 +135,12 @@ function PlanModal({ open, onClose, initial }: {
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function EnrollmentPlansPage() {
   const isAdmin = auth.getUser()?.role === 'admin'
   const qc = useQueryClient()
   const { data: plans = [], isLoading } = usePlans()
   const [showModal, setShowModal] = useState(false)
   const [editing, setEditing] = useState<EnrollmentPlanDTO | null>(null)
-
-  const seedMutation = useMutation({
-    mutationFn: () => apiClient.post('/v1/enrollment-plans/seed', {}),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['enrollment-plans'] }),
-  })
 
   const toggleActive = useMutation({
     mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
@@ -167,14 +167,8 @@ export default function EnrollmentPlansPage() {
         {isLoading ? (
           <p className="text-sm text-gray-400 py-4">A carregar…</p>
         ) : !isLoading && plans.length === 0 ? (
-          <div className="text-center py-16 space-y-4">
+          <div className="text-center py-16">
             <p className="text-sm text-gray-500">Nenhum plano de matrícula criado ainda.</p>
-            {isAdmin && (
-              <Button onClick={() => seedMutation.mutate()} disabled={seedMutation.isPending}>
-                {seedMutation.isPending ? 'A criar…' : 'Criar planos padrão'}
-              </Button>
-            )}
-            {seedMutation.isError && <p className="text-sm text-red-600">Erro ao criar planos.</p>}
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-2">

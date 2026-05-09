@@ -6,23 +6,22 @@ import { useSchoolYears, currentSchoolYearName } from '@/hooks/useSchoolYear'
 import { useCategories } from '@/hooks/useCategories'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
+import { Modal } from '@/components/ui/Modal'
 import { auth } from '@/lib/auth'
 import clsx from 'clsx'
-import type { BudgetEntryDTO, BudgetExecutionDTO, CategoryDTO } from '@fin-tribe/shared-types'
+import type { BudgetEntryDTO, BudgetExecutionDTO, CategoryDTO, SchoolYearDTO } from '@fin-tribe/shared-types'
 
 const SCHOOL_MONTHS = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8]
 const MONTH_LABELS  = ['Set', 'Out', 'Nov', 'Dez', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago']
 
 type Tab = 'planning' | 'execution'
 
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 function fmtK(n: number) {
   if (n === 0) return '—'
   return n.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })
 }
 function fmt0(n: number) { return n === 0 ? '' : n.toLocaleString('pt-PT', { maximumFractionDigits: 0 }) }
 
-// ─── Editable cell ────────────────────────────────────────────────────────────
 function EditableCell({ value, onCommit }: { value: number; onCommit: (raw: string) => void }) {
   const [raw, setRaw] = useState(value === 0 ? '' : String(value))
   const ref = useRef<HTMLInputElement>(null)
@@ -38,7 +37,6 @@ function EditableCell({ value, onCommit }: { value: number; onCommit: (raw: stri
   )
 }
 
-// ─── Shared table header ──────────────────────────────────────────────────────
 function TableHead() {
   return (
     <thead className="sticky top-0 bg-white z-10">
@@ -87,11 +85,66 @@ function TotalRow({ label, months, getValue, className, colorize }: {
   )
 }
 
-// ─── Planning tab ─────────────────────────────────────────────────────────────
+function CopyBudgetModal({ open, onClose, toYearId, toYearName, otherYears }: {
+  open: boolean; onClose: () => void
+  toYearId: string; toYearName: string; otherYears: SchoolYearDTO[]
+}) {
+  const qc = useQueryClient()
+  const [fromYearId, setFromYearId] = useState(otherYears[0]?.id ?? '')
+  const [mode, setMode] = useState<'planned' | 'executed'>('planned')
+
+  const copyMutation = useMutation({
+    mutationFn: () => apiClient.post('/v1/budget/copy', { fromYearId, toYearId, mode }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budget', toYearId] })
+      qc.invalidateQueries({ queryKey: ['budget-execution', toYearId] })
+      onClose()
+    },
+  })
+
+  const fromName  = otherYears.find(y => y.id === fromYearId)?.name ?? ''
+  const modeLabel = mode === 'executed' ? 'executado' : 'planeado'
+
+  return (
+    <Modal open={open} onClose={onClose} title="Copiar Orçamento">
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Copiar de</label>
+          <select value={fromYearId} onChange={e => setFromYearId(e.target.value)}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            {otherYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de dados</label>
+          <select value={mode} onChange={e => setMode(e.target.value as 'planned' | 'executed')}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="planned">Planeado</option>
+            <option value="executed">Executado</option>
+          </select>
+        </div>
+        <p className="text-sm text-gray-600 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+          Os valores {modeLabel}s de <strong>{fromName}</strong> serão copiados para <strong>{toYearName}</strong>. Esta ação sobrescreve os valores existentes.
+        </p>
+        {copyMutation.isError && (
+          <p className="text-sm text-red-600">Erro ao copiar orçamento.</p>
+        )}
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button onClick={() => copyMutation.mutate()}
+          disabled={copyMutation.isPending || !fromYearId}>
+          {copyMutation.isPending ? 'A copiar…' : 'Confirmar cópia'}
+        </Button>
+      </div>
+    </Modal>
+  )
+}
+
 function PlanningTab({
-  yearId, categories, isAdmin,
+  yearId, categories, isAdmin, yearName,
 }: {
-  yearId: string; categories: CategoryDTO[]; isAdmin: boolean
+  yearId: string; categories: CategoryDTO[]; isAdmin: boolean; yearName: string
 }) {
   const qc = useQueryClient()
   const { data: budget = [] } = useQuery({
@@ -131,7 +184,35 @@ function PlanningTab({
   const incomeCats  = categories.filter(c => c.classification === 'receita' && c.isActive)
   const cols = SCHOOL_MONTHS.length + 2
 
+  function exportCsv() {
+    const header = ['Categoria', 'Tipo', ...MONTH_LABELS, 'Total']
+    const rows: string[][] = [header]
+
+    rows.push(['DESPESAS', '', ...MONTH_LABELS.map(() => ''), ''])
+    expenseCats.forEach(cat => {
+      const monthVals = SCHOOL_MONTHS.map(m => String(getAmount(cat.id, m)))
+      const total = SCHOOL_MONTHS.reduce((s, m) => s + getAmount(cat.id, m), 0)
+      rows.push([cat.namePt, 'despesa', ...monthVals, String(total)])
+    })
+    rows.push(['RECEITAS', '', ...MONTH_LABELS.map(() => ''), ''])
+    incomeCats.forEach(cat => {
+      const monthVals = SCHOOL_MONTHS.map(m => String(getAmount(cat.id, m)))
+      const total = SCHOOL_MONTHS.reduce((s, m) => s + getAmount(cat.id, m), 0)
+      rows.push([cat.namePt, 'receita', ...monthVals, String(total)])
+    })
+
+    const csv = rows.map(r => r.map(v => `"${v.replace(/"/g, '""')}"`).join(',')).join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a'); a.href = url; a.download = `orcamento_${yearName}.csv`
+    a.click(); URL.revokeObjectURL(url)
+  }
+
   return (
+    <>
+    <div className="flex justify-end mb-2">
+      <Button variant="secondary" size="sm" onClick={exportCsv}>↓ Exportar CSV</Button>
+    </div>
     <table className="w-full text-xs border-collapse">
       <TableHead />
       <tbody>
@@ -188,10 +269,10 @@ function PlanningTab({
           colorize />
       </tbody>
     </table>
+    </>
   )
 }
 
-// ─── Execution tab ────────────────────────────────────────────────────────────
 function ExecutionTab({ yearId, categories }: { yearId: string; categories: CategoryDTO[] }) {
   const { data: execution = [] } = useQuery({
     queryKey: ['budget-execution', yearId],
@@ -217,7 +298,6 @@ function ExecutionTab({ yearId, categories }: { yearId: string; categories: Cate
     const plannedTotal = SCHOOL_MONTHS.reduce((s, m) => s + getPlanned(cat.id, m), 0)
     return (
       <>
-        {/* Actual row */}
         <tr className="border-b border-gray-100 hover:bg-gray-50">
           <td className="py-1 pr-3 font-medium text-gray-800 truncate max-w-[11rem]" rowSpan={2}>{cat.namePt}</td>
           {SCHOOL_MONTHS.map(m => {
@@ -238,7 +318,6 @@ function ExecutionTab({ yearId, categories }: { yearId: string; categories: Cate
             {fmt0(actualTotal)}
           </td>
         </tr>
-        {/* Planned sub-row */}
         <tr className="border-b border-gray-100">
           {SCHOOL_MONTHS.map(m => (
             <td key={m} className="pb-1.5 px-1.5 text-right tabular-nums text-gray-400 text-[10px]">
@@ -253,7 +332,6 @@ function ExecutionTab({ yearId, categories }: { yearId: string; categories: Cate
 
   return (
     <div>
-      {/* Legend */}
       <div className="mb-3 flex items-center gap-4 text-xs text-gray-500">
         <span><strong className="text-gray-800">Valor superior</strong> = executado</span>
         <span><strong className="text-gray-400">Valor inferior</strong> = planeado</span>
@@ -295,7 +373,6 @@ function ExecutionTab({ yearId, categories }: { yearId: string; categories: Cate
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function BudgetPage() {
   const { t } = useTranslation()
   const user    = auth.getUser()
@@ -308,30 +385,11 @@ export default function BudgetPage() {
 
   const [selectedYearId, setSelectedYearId] = useState('')
   const [tab, setTab]       = useState<Tab>('planning')
-  const [copyFromId, setCopyFromId] = useState('')
-  const [copyMode, setCopyMode]     = useState<'planned' | 'executed'>('planned')
+  const [showCopyModal, setShowCopyModal] = useState(false)
 
   const yearId     = selectedYearId || currentYear?.id || ''
+  const yearName   = years.find(y => y.id === yearId)?.name ?? ''
   const otherYears = years.filter(y => y.id !== yearId)
-
-  const qc = useQueryClient()
-  const copyMutation = useMutation({
-    mutationFn: ({ fromYearId, mode }: { fromYearId: string; mode: string }) =>
-      apiClient.post('/v1/budget/copy', { fromYearId, toYearId: yearId, mode }),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['budget', yearId] })
-      qc.invalidateQueries({ queryKey: ['budget-execution', yearId] })
-    },
-  })
-
-  function handleCopy() {
-    const sourceId   = copyFromId || otherYears[0]?.id
-    if (!sourceId) return
-    const sourceName = years.find(y => y.id === sourceId)?.name ?? ''
-    const modeLabel  = copyMode === 'executed' ? 'executado' : 'planeado'
-    if (confirm(`Copiar orçamento ${modeLabel} de ${sourceName} para o ano selecionado?`))
-      copyMutation.mutate({ fromYearId: sourceId, mode: copyMode })
-  }
 
   return (
     <div className="h-full flex flex-col">
@@ -339,31 +397,11 @@ export default function BudgetPage() {
         title={t('nav.budget')}
         actions={
           <div className="flex items-center gap-3">
-            {/* Copy from past budget */}
             {isAdmin && otherYears.length > 0 && tab === 'planning' && (
-              <div className="flex items-center gap-1">
-                <span className="text-xs text-gray-500">Copiar de</span>
-                <select
-                  value={copyFromId || otherYears[0]?.id}
-                  onChange={e => setCopyFromId(e.target.value)}
-                  className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
-                >
-                  {otherYears.map(y => <option key={y.id} value={y.id}>{y.name}</option>)}
-                </select>
-                <select
-                  value={copyMode}
-                  onChange={e => setCopyMode(e.target.value as 'planned' | 'executed')}
-                  className="rounded-lg border border-gray-300 px-2 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
-                >
-                  <option value="planned">Planeado</option>
-                  <option value="executed">Executado</option>
-                </select>
-                <Button variant="secondary" size="sm" onClick={handleCopy} disabled={copyMutation.isPending}>
-                  {copyMutation.isPending ? '…' : 'Copiar'}
-                </Button>
-              </div>
+              <Button variant="secondary" size="sm" onClick={() => setShowCopyModal(true)}>
+                Copiar…
+              </Button>
             )}
-            {/* Year selector */}
             <select
               value={yearId} onChange={e => setSelectedYearId(e.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
@@ -374,12 +412,9 @@ export default function BudgetPage() {
         }
       />
 
-      {/* Tabs */}
       <div className="px-8 pb-0 flex gap-1 border-b border-gray-200">
         {(['planning', 'execution'] as Tab[]).map(t => (
-          <button
-            key={t}
-            onClick={() => setTab(t)}
+          <button key={t} onClick={() => setTab(t)}
             className={clsx(
               'px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors',
               tab === t
@@ -399,11 +434,21 @@ export default function BudgetPage() {
         {!yearId ? (
           <p className="text-sm text-amber-600">No school year found. Create one first in School Years settings.</p>
         ) : tab === 'planning' ? (
-          <PlanningTab yearId={yearId} categories={categories} isAdmin={isAdmin} />
+          <PlanningTab yearId={yearId} categories={categories} isAdmin={isAdmin} yearName={yearName} />
         ) : (
           <ExecutionTab yearId={yearId} categories={categories} />
         )}
       </div>
+
+      {showCopyModal && (
+        <CopyBudgetModal
+          open
+          onClose={() => setShowCopyModal(false)}
+          toYearId={yearId}
+          toYearName={yearName}
+          otherYears={otherYears}
+        />
+      )}
     </div>
   )
 }

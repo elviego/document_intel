@@ -52,8 +52,16 @@ function AddSchoolYearModal({ open, onClose }: { open: boolean; onClose: () => v
 
 export default function SchoolYearsPage() {
   const { t } = useTranslation()
+  const qc = useQueryClient()
   const { data: years = [], isLoading } = useSchoolYearsAdmin()
   const [showAdd, setShowAdd] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/v1/school-years/${id}`),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['school-years'] }); setDeleteError(null) },
+    onError: (err) => setDeleteError(errorMessage(err)),
+  })
 
   if (isLoading) return <div className="p-8 text-gray-400 text-sm">{t('common.loading')}</div>
 
@@ -66,6 +74,11 @@ export default function SchoolYearsPage() {
       />
 
       <div className="flex-1 overflow-auto px-8 pb-8">
+        {deleteError && (
+          <div className="mb-4 max-w-lg bg-red-50 border border-red-200 text-red-700 text-sm rounded-lg px-4 py-3">
+            {deleteError}
+          </div>
+        )}
         <div className="bg-white rounded-xl border border-gray-200 divide-y divide-gray-100 shadow-sm max-w-lg">
           {years.map(y => (
             <div key={y.id} className="flex items-center gap-4 px-4 py-4">
@@ -76,6 +89,17 @@ export default function SchoolYearsPage() {
                 <p className="text-sm font-semibold text-gray-900">{y.name}</p>
                 <p className="text-xs text-gray-400">{y.startDate.slice(0, 10)} → {y.endDate.slice(0, 10)}</p>
               </div>
+              <button
+                onClick={() => {
+                  if (confirm(`Eliminar o ano lectivo "${y.name}"?`)) {
+                    deleteMutation.mutate(y.id)
+                  }
+                }}
+                disabled={deleteMutation.isPending}
+                className="text-xs text-red-400 hover:text-red-600 disabled:opacity-40"
+              >
+                Eliminar
+              </button>
             </div>
           ))}
           {years.length === 0 && (

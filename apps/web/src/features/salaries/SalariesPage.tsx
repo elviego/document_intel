@@ -3,7 +3,6 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { apiClient, errorMessage } from '@/lib/api-client'
 import { useSchoolYears, currentSchoolYearName } from '@/hooks/useSchoolYear'
-import { useBankAccounts } from '@/hooks/useBankAccounts'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
@@ -12,16 +11,17 @@ import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
 import type { SalaryEntryDTO } from '@fin-tribe/shared-types'
 
-const MONTH_NAMES = [
-  '', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
-  'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez',
-]
-
 const SALARY_TYPES = [
   { value: 'contrato',   label: 'Contrato' },
   { value: 'rec_verdes', label: 'Recibos Verdes' },
   { value: 'horas',      label: 'Horas Extra' },
   { value: 'terceiros',  label: 'Terceiros' },
+]
+
+const RECURRENCE_TYPES = [
+  { value: 'monthly', label: 'Mensal' },
+  { value: 'weekly',  label: 'Semanal' },
+  { value: 'annual',  label: 'Anual' },
 ]
 
 function useSalaries(schoolYearId: string) {
@@ -36,46 +36,35 @@ function formatEuro(n: number) {
   return n.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })
 }
 
-// ─── Add Salary Modal ─────────────────────────────────────────────────────────
 function AddSalaryModal({
   open, onClose, schoolYearId,
 }: { open: boolean; onClose: () => void; schoolYearId: string }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
-  const { data: bankAccounts = [] } = useBankAccounts()
   const [form, setForm] = useState({
-    personName: '',
-    salaryType: 'contrato',
-    serviceName: '',
-    baseAmount: '',
-    month: String(new Date().getMonth() + 1),
+    personName:   '',
+    salaryType:   'contrato',
+    serviceName:  '',
+    baseAmount:   '',
     actualAmount: '',
-    bankAccountId: '',
+    recurrence:   'monthly',
   })
 
   const mutation = useMutation({
     mutationFn: () => apiClient.post('/v1/salaries', {
       ...form,
       schoolYearId,
-      month:        parseInt(form.month),
       baseAmount:   parseFloat(form.baseAmount)  || 0,
       actualAmount: parseFloat(form.actualAmount) || parseFloat(form.baseAmount) || 0,
     }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['salaries'] })
-      qc.invalidateQueries({ queryKey: ['transactions'] })
       onClose()
     },
   })
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
-
-  const monthOptions = MONTH_NAMES.slice(1).map((name, i) => ({ value: String(i + 1), label: name }))
-  const bankOptions  = [
-    { value: '', label: '— Conta —' },
-    ...bankAccounts.map(b => ({ value: b.id, label: b.name })),
-  ]
 
   return (
     <Modal open={open} onClose={onClose} title={t('salaries.add')}>
@@ -85,9 +74,8 @@ function AddSalaryModal({
           options={SALARY_TYPES} />
         <Input label={t('salaries.serviceName')} value={form.serviceName} onChange={set('serviceName')}
           placeholder={t('salaries.serviceNameHint')} />
-        <Select label={t('salaries.month')} value={form.month} onChange={set('month')} options={monthOptions} />
-        <Select label={t('transactions.account')} value={form.bankAccountId} onChange={set('bankAccountId')}
-          options={bankOptions} />
+        <Select label="Recorrência" value={form.recurrence} onChange={set('recurrence')}
+          options={RECURRENCE_TYPES} />
         <Input label={t('salaries.baseAmount')} type="number" step="0.01" value={form.baseAmount}
           onChange={set('baseAmount')} />
         <Input label={t('salaries.actualAmount')} type="number" step="0.01" value={form.actualAmount}
@@ -100,7 +88,7 @@ function AddSalaryModal({
         <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
         <Button
           onClick={() => mutation.mutate()}
-          disabled={mutation.isPending || !form.personName || !form.baseAmount || !form.bankAccountId}
+          disabled={mutation.isPending || !form.personName || !form.baseAmount}
         >
           {mutation.isPending ? t('common.loading') : t('common.save')}
         </Button>
@@ -109,7 +97,6 @@ function AddSalaryModal({
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function SalariesPage() {
   const { t } = useTranslation()
   const { data: years = [] } = useSchoolYears()
@@ -118,7 +105,6 @@ export default function SalariesPage() {
 
   const [selectedYearId, setSelectedYearId] = useState('')
   const [showAdd, setShowAdd] = useState(false)
-  const [filterMonth, setFilterMonth] = useState('')
 
   const yearId = selectedYearId || currentYear?.id || ''
   const { data: entries = [], isLoading } = useSalaries(yearId)
@@ -126,25 +112,13 @@ export default function SalariesPage() {
 
   const deleteMutation = useMutation({
     mutationFn: (id: string) => apiClient.delete(`/v1/salaries/${id}`),
-    onSuccess:  () => {
-      qc.invalidateQueries({ queryKey: ['salaries'] })
-      qc.invalidateQueries({ queryKey: ['transactions'] })
-    },
+    onSuccess:  () => qc.invalidateQueries({ queryKey: ['salaries'] }),
   })
 
-  const filtered = filterMonth
-    ? entries.filter(e => e.month === parseInt(filterMonth))
-    : entries
-
-  // Group by person
   const byPerson: Record<string, SalaryEntryDTO[]> = {}
-  filtered.forEach(e => {
-    ;(byPerson[e.personName] ??= []).push(e)
-  })
+  entries.forEach(e => { (byPerson[e.personName] ??= []).push(e) })
 
-  const totalActual = filtered.reduce((s, e) => s + e.actualAmount, 0)
-
-  const monthOptions = MONTH_NAMES.slice(1).map((name, i) => ({ value: String(i + 1), label: name }))
+  const totalActual = entries.reduce((s, e) => s + e.actualAmount, 0)
 
   if (isLoading) return <div className="p-8 text-gray-400 text-sm">{t('common.loading')}</div>
 
@@ -155,13 +129,6 @@ export default function SalariesPage() {
         subtitle={`Total: ${formatEuro(totalActual)}`}
         actions={
           <div className="flex items-center gap-3">
-            <select
-              value={filterMonth} onChange={e => setFilterMonth(e.target.value)}
-              className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
-            >
-              <option value="">Todos os meses</option>
-              {monthOptions.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </select>
             <select
               value={yearId} onChange={e => setSelectedYearId(e.target.value)}
               className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
@@ -206,32 +173,26 @@ function PersonCard({ person, entries, onDelete }: {
       <table className="w-full text-sm">
         <thead>
           <tr className="text-left text-xs text-gray-500 border-b border-gray-100">
-            <th className="px-4 py-2 font-medium">Mês</th>
             <th className="px-4 py-2 font-medium">Tipo</th>
             <th className="px-4 py-2 font-medium">Serviço</th>
+            <th className="px-4 py-2 font-medium">Recorrência</th>
             <th className="px-4 py-2 font-medium text-right">Base</th>
             <th className="px-4 py-2 font-medium text-right">Real</th>
-            <th className="px-4 py-2 font-medium">Transação</th>
             <th className="px-4 py-2 w-8" />
           </tr>
         </thead>
         <tbody className="divide-y divide-gray-50">
           {entries.map(e => (
             <tr key={e.id} className="hover:bg-gray-50 group">
-              <td className="px-4 py-2 text-gray-600">{MONTH_NAMES[e.month]}</td>
               <td className="px-4 py-2">
                 <Badge variant="gray">{SALARY_TYPES.find(s => s.value === e.salaryType)?.label ?? e.salaryType}</Badge>
               </td>
               <td className="px-4 py-2 text-gray-500 max-w-xs truncate">{e.serviceName ?? '—'}</td>
+              <td className="px-4 py-2 text-gray-500">
+                {RECURRENCE_TYPES.find(r => r.value === e.recurrence)?.label ?? e.recurrence}
+              </td>
               <td className="px-4 py-2 text-right font-mono text-gray-600">{formatEuro(e.baseAmount)}</td>
               <td className="px-4 py-2 text-right font-mono font-semibold text-gray-900">{formatEuro(e.actualAmount)}</td>
-              <td className="px-4 py-2">
-                {e.linkedTransactionId ? (
-                  <Badge variant="green">✓ mov.</Badge>
-                ) : (
-                  <Badge variant="gray">—</Badge>
-                )}
-              </td>
               <td className="px-4 py-2">
                 <button
                   onClick={() => onDelete(e.id)}
