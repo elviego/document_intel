@@ -74,6 +74,32 @@ fin-tribe/
 | Bank Accounts | `/bank-accounts` | Admin |
 | School Years | `/school-years` | Admin |
 | Users | `/users` | Admin |
+| **OCR / Documents** | `/ocr` | Admin, staff |
+
+---
+
+## OCR Module
+
+Document intelligence pipeline — upload, OCR, AI extraction, and analytics.
+
+| Route | Description |
+|---|---|
+| `/ocr` | Document list, drag-and-drop batch upload |
+| `/ocr/:id` | Document detail, preview, export (JSON/CSV), re-process with override |
+| `/ocr/config` | LLM providers, per-type OCR settings, webhook management |
+| `/ocr/metrics` | Confidence dashboard, trending quality charts |
+
+**Key capabilities**
+
+- PDF (text + scanned), PNG, JPEG, TIFF, BMP, WebP
+- OCR engines: **Tesseract.js** (images) · **PDF.js** (text PDFs) · **PDF.js + Tesseract** (scanned PDFs)
+- LLM structured extraction: **Anthropic Claude** · **OpenAI** · **Ollama** (local) · **DeepSeek** · any OpenAI-compatible endpoint
+- 8 document types with type-specific extraction schemas
+- File storage: **local filesystem** or **S3 / Cloudflare R2 / MinIO**
+- Webhooks with HMAC-SHA256 signatures and delivery audit log
+- OCR metrics tracked in PostgreSQL with time-series trending
+
+**→ Full documentation: [`docs/ocr/`](docs/ocr/README.md)**
 
 ---
 
