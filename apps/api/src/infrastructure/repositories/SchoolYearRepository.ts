@@ -1,4 +1,5 @@
 import { eq } from 'drizzle-orm'
+import { AppError } from '../../shared/errors.js'
 import type { DB } from '../db/client.js'
 import { schoolYears } from '../db/schema.js'
 import type { SchoolYear, SchoolYearId } from '../../domain/entities/SchoolYear.js'
@@ -29,6 +30,17 @@ export class SchoolYearRepository implements ISchoolYearRepository {
       endDate:   input.endDate.toISOString().slice(0, 10),
     }).returning()
     return this.#map(rows[0])
+  }
+
+  async delete(id: SchoolYearId): Promise<void> {
+    try {
+      await this.db.delete(schoolYears).where(eq(schoolYears.id, id))
+    } catch (err: any) {
+      if (err?.code === '23503') {
+        throw new AppError('Não é possível eliminar: o ano lectivo tem registos associados (transações, orçamento, refeições, etc.).', 409, 'FK_VIOLATION')
+      }
+      throw err
+    }
   }
 
   #map = (row: typeof schoolYears.$inferSelect): SchoolYear => ({

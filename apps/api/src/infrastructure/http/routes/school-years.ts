@@ -24,4 +24,10 @@ export const schoolYearRoutes: FastifyPluginAsync = async (app) => {
       endDate:   new Date(body.endDate),
     }))
   })
+
+  app.delete('/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    await repo.delete(id)
+    return reply.status(204).send()
+  })
 }

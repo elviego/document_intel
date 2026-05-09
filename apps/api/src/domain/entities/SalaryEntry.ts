@@ -5,9 +5,10 @@ export interface SalaryEntry {
   schoolYearId: string
   personName: string
   salaryType: SalaryType
-  serviceName: string | null   // for terceiros: "Yoga", "Música"
+  serviceName: string | null
   baseAmount: number
-  month: number                // 1–12
+  month: number | null
+  recurrence: string
   actualAmount: number
   linkedTransactionId: string | null
   createdAt: Date
