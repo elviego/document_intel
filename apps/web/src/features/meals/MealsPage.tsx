@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { format } from 'date-fns'
-import { apiClient } from '@/lib/api-client'
+import { apiClient, errorMessage } from '@/lib/api-client'
 import { useSchoolYears, currentSchoolYearName } from '@/hooks/useSchoolYear'
 import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
@@ -10,14 +9,13 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { auth } from '@/lib/auth'
 import { StudentImportModal } from './StudentImportModal'
-import type { ChildDTO, MealRecordDTO, ChildMonthlyBillingDTO } from '@fin-tribe/shared-types'
+import type { ChildDTO, MealRecordDTO, ChildMonthlyBillingDTO, MealTypeDTO } from '@fin-tribe/shared-types'
 
 interface MealPricing {
   id: string; schoolYearId: string; mealType: 'com_sopa' | 'sem_sopa'
   schoolCost: number; parentPrice: number
 }
 
-// ─── Hooks ────────────────────────────────────────────────────────────────────
 function useChildren(schoolYearId: string) {
   return useQuery({
     queryKey: ['children', schoolYearId],
@@ -26,11 +24,13 @@ function useChildren(schoolYearId: string) {
   })
 }
 
-function useMealRecords(date: string) {
+function useMonthRecords(year: number, month: number) {
+  const from = `${year}-${String(month).padStart(2, '0')}-01`
+  const lastDay = new Date(year, month, 0).getDate()
+  const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
   return useQuery({
-    queryKey: ['meal-records', date],
-    queryFn:  () => apiClient.get<MealRecordDTO[]>(`/v1/meals/records?from=${date}&to=${date}`),
-    enabled:  !!date,
+    queryKey: ['meal-records-month', year, month],
+    queryFn:  () => apiClient.get<MealRecordDTO[]>(`/v1/meals/records?from=${from}&to=${to}`),
   })
 }
 
@@ -52,116 +52,242 @@ function usePricing(schoolYearId: string) {
   })
 }
 
-type Tab = 'daily' | 'billing' | 'pricing' | 'children'
+function useMealTypes() {
+  return useQuery({
+    queryKey: ['meal-types'],
+    queryFn:  () => apiClient.get<MealTypeDTO[]>('/v1/meals/meal-types'),
+  })
+}
 
-// ─── Add Child Modal ──────────────────────────────────────────────────────────
-function AddChildModal({ open, onClose, schoolYearId }: { open: boolean; onClose: () => void; schoolYearId: string }) {
-  const { t } = useTranslation()
+type Tab = 'tipos' | 'daily' | 'billing' | 'pricing' | 'children'
+
+function MealTypeModal({ open, onClose, initial }: {
+  open: boolean; onClose: () => void; initial: MealTypeDTO | null
+}) {
   const qc = useQueryClient()
-  const [form, setForm] = useState({ fullName: '', tuitionType: 'mensalidade' })
+  const [form, setForm] = useState({
+    name:         initial?.name         ?? '',
+    description:  initial?.description  ?? '',
+    mealsPerWeek: initial?.mealsPerWeek ?? 5,
+    parentPrice:  initial?.parentPrice  ?? 0,
+    schoolCost:   initial?.schoolCost   ?? 0,
+  })
 
   const mutation = useMutation({
-    mutationFn: () => apiClient.post('/v1/meals/children', { ...form, schoolYearId }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['children'] }); onClose() },
+    mutationFn: () => initial
+      ? apiClient.put(`/v1/meals/meal-types/${initial.id}`, {
+          ...form,
+          mealsPerWeek: Number(form.mealsPerWeek),
+          parentPrice:  Number(form.parentPrice),
+          schoolCost:   Number(form.schoolCost),
+        })
+      : apiClient.post('/v1/meals/meal-types', {
+          ...form,
+          mealsPerWeek: Number(form.mealsPerWeek),
+          parentPrice:  Number(form.parentPrice),
+          schoolCost:   Number(form.schoolCost),
+        }),
+    onSuccess: () => { qc.invalidateQueries({ queryKey: ['meal-types'] }); onClose() },
   })
 
   return (
-    <Modal open={open} onClose={onClose} title={t('meals.addChild')}>
+    <Modal open={open} onClose={onClose} title={initial ? 'Editar Tipo de Refeição' : 'Novo Tipo de Refeição'}>
       <div className="space-y-3">
-        <Input label={t('meals.childName')} value={form.fullName}
-          onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} />
-        <Input label={t('meals.tuitionType')} value={form.tuitionType}
-          onChange={e => setForm(f => ({ ...f, tuitionType: e.target.value }))} />
+        <Input label="Nome *" value={form.name}
+          onChange={e => setForm(f => ({ ...f, name: e.target.value }))} />
+        <Input label="Descrição" value={form.description ?? ''}
+          onChange={e => setForm(f => ({ ...f, description: e.target.value }))} />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Refeições por semana</label>
+          <select value={form.mealsPerWeek}
+            onChange={e => setForm(f => ({ ...f, mealsPerWeek: parseInt(e.target.value) }))}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            {[1, 2, 3, 4, 5].map(n => <option key={n} value={n}>{n} dia{n > 1 ? 's' : ''}/semana</option>)}
+          </select>
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <Input label="Preço pai/mãe (€)" type="number" step="0.01" value={String(form.parentPrice)}
+            onChange={e => setForm(f => ({ ...f, parentPrice: parseFloat(e.target.value) || 0 }))} />
+          <Input label="Custo escola (€)" type="number" step="0.01" value={String(form.schoolCost)}
+            onChange={e => setForm(f => ({ ...f, schoolCost: parseFloat(e.target.value) || 0 }))} />
+        </div>
+        {mutation.isError && <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>}
       </div>
       <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
-        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !form.fullName}>
-          {mutation.isPending ? t('common.loading') : t('common.save')}
+        <Button variant="secondary" onClick={onClose}>Cancelar</Button>
+        <Button onClick={() => mutation.mutate()} disabled={mutation.isPending || !form.name}>
+          {mutation.isPending ? 'A guardar…' : 'Guardar'}
         </Button>
       </div>
     </Modal>
   )
 }
 
-// ─── Daily Tab ────────────────────────────────────────────────────────────────
-function DailyTab({ schoolYearId }: { schoolYearId: string }) {
-  const { t } = useTranslation()
-  const [date, setDate] = useState(format(new Date(), 'yyyy-MM-dd'))
-  const { data: children = [] } = useChildren(schoolYearId)
-  const { data: records = [], isLoading } = useMealRecords(date)
+function MealTypesTab() {
   const qc = useQueryClient()
+  const { data: mealTypes = [], isLoading } = useMealTypes()
+  const [showModal, setShowModal] = useState(false)
+  const [editing, setEditing]     = useState<MealTypeDTO | null>(null)
 
-  const toggleMutation = useMutation({
-    mutationFn: ({ childId, mealType }: { childId: string; mealType: 'com_sopa' | 'sem_sopa' }) => {
-      const existing = records.find(r => r.childId === childId && r.mealType === mealType)
-      if (existing) return apiClient.delete(`/v1/meals/records/${existing.id}`)
-      return apiClient.post('/v1/meals/records', { childId, date, mealType })
-    },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-records', date] }),
+  const toggleActive = useMutation({
+    mutationFn: ({ id, isActive }: { id: string; isActive: boolean }) =>
+      apiClient.put(`/v1/meals/meal-types/${id}`, { isActive }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-types'] }),
   })
 
-  const activeChildren = children.filter(c => c.isActive)
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/v1/meals/meal-types/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-types'] }),
+  })
+
+  function eur(n: number) { return n.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' }) }
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center gap-3">
-        <label className="text-sm text-gray-600">Data</label>
-        <input type="date" value={date} onChange={e => setDate(e.target.value)}
-          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500" />
+      <div className="flex justify-end">
+        <Button size="sm" onClick={() => { setEditing(null); setShowModal(true) }}>+ Novo tipo</Button>
       </div>
-
       {isLoading ? (
-        <p className="text-sm text-gray-400">{t('common.loading')}</p>
+        <p className="text-sm text-gray-400">A carregar…</p>
       ) : (
         <table className="w-full text-sm border-collapse">
           <thead>
             <tr className="text-left border-b border-gray-200 text-xs text-gray-500 uppercase">
-              <th className="pb-2 pr-4 font-medium">{t('meals.childName')}</th>
-              <th className="pb-2 pr-4 font-medium text-center">{t('meals.withSoup')}</th>
-              <th className="pb-2 font-medium text-center">{t('meals.withoutSoup')}</th>
+              <th className="pb-2 pr-4 font-medium">Nome</th>
+              <th className="pb-2 pr-4 font-medium">Refeições/semana</th>
+              <th className="pb-2 pr-4 font-medium text-right">Preço pai/mãe</th>
+              <th className="pb-2 pr-4 font-medium text-right">Custo escola</th>
+              <th className="pb-2 pr-4 font-medium text-center">Activo</th>
+              <th className="pb-2 font-medium" />
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-100">
-            {activeChildren.map(child => {
-              const hasSoup   = records.some(r => r.childId === child.id && r.mealType === 'com_sopa')
-              const hasNoSoup = records.some(r => r.childId === child.id && r.mealType === 'sem_sopa')
-              return (
-                <tr key={child.id} className="hover:bg-gray-50">
-                  <td className="py-2 pr-4 font-medium text-gray-900">{child.fullName}</td>
-                  <td className="py-2 pr-4 text-center">
-                    <button
-                      onClick={() => toggleMutation.mutate({ childId: child.id, mealType: 'com_sopa' })}
-                      className={`w-7 h-7 rounded-full border-2 text-xs font-bold transition-colors ${
-                        hasSoup ? 'bg-green-500 border-green-500 text-white' : 'border-gray-300 text-gray-300 hover:border-green-400'
-                      }`}
-                    >
-                      ✓
-                    </button>
-                  </td>
-                  <td className="py-2 text-center">
-                    <button
-                      onClick={() => toggleMutation.mutate({ childId: child.id, mealType: 'sem_sopa' })}
-                      className={`w-7 h-7 rounded-full border-2 text-xs font-bold transition-colors ${
-                        hasNoSoup ? 'bg-blue-500 border-blue-500 text-white' : 'border-gray-300 text-gray-300 hover:border-blue-400'
-                      }`}
-                    >
-                      ✓
-                    </button>
-                  </td>
-                </tr>
-              )
-            })}
-            {activeChildren.length === 0 && (
-              <tr><td colSpan={3} className="py-8 text-center text-sm text-gray-400">Nenhuma criança ativa</td></tr>
+            {mealTypes.map(mt => (
+              <tr key={mt.id} className={`hover:bg-gray-50 ${!mt.isActive ? 'opacity-50' : ''}`}>
+                <td className="py-2 pr-4 font-medium text-gray-900">
+                  {mt.name}
+                  {mt.description && <span className="ml-1 text-xs text-gray-400">— {mt.description}</span>}
+                </td>
+                <td className="py-2 pr-4 text-gray-600">{mt.mealsPerWeek}/sem</td>
+                <td className="py-2 pr-4 text-right font-mono text-gray-700">{eur(mt.parentPrice)}</td>
+                <td className="py-2 pr-4 text-right font-mono text-gray-600">{eur(mt.schoolCost)}</td>
+                <td className="py-2 pr-4 text-center">
+                  <button onClick={() => toggleActive.mutate({ id: mt.id, isActive: !mt.isActive })}
+                    className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${mt.isActive ? 'bg-green-500' : 'bg-gray-300'}`}>
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${mt.isActive ? 'translate-x-4' : ''}`} />
+                  </button>
+                </td>
+                <td className="py-2 text-right">
+                  <div className="flex justify-end gap-3">
+                    <button onClick={() => { setEditing(mt); setShowModal(true) }}
+                      className="text-xs text-gray-400 hover:text-gray-600">Editar</button>
+                    <button onClick={() => { if (confirm(`Eliminar "${mt.name}"?`)) deleteMutation.mutate(mt.id) }}
+                      className="text-xs text-red-400 hover:text-red-600">Eliminar</button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {mealTypes.length === 0 && (
+              <tr><td colSpan={6} className="py-8 text-center text-sm text-gray-400">Nenhum tipo de refeição</td></tr>
             )}
           </tbody>
         </table>
+      )}
+      {showModal && <MealTypeModal open onClose={() => setShowModal(false)} initial={editing} />}
+    </div>
+  )
+}
+
+function DailyTab({ schoolYearId }: { schoolYearId: string }) {
+  const now    = new Date()
+  const [month, setMonth] = useState(now.getMonth() + 1)
+  const [year,  setYear]  = useState(now.getFullYear())
+  const qc = useQueryClient()
+  const { data: records = [], isLoading } = useMonthRecords(year, month)
+  const [populateMsg, setPopulateMsg] = useState<string | null>(null)
+
+  const monthNames = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
+
+  const populateMutation = useMutation({
+    mutationFn: () => apiClient.post('/v1/meals/records/populate-month', { schoolYearId, year, month }),
+    onSuccess: (data: any) => {
+      qc.invalidateQueries({ queryKey: ['meal-records-month', year, month] })
+      setPopulateMsg(`${data.count} registos adicionados.`)
+      setTimeout(() => setPopulateMsg(null), 3000)
+    },
+  })
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/v1/meals/records/${id}`),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['meal-records-month', year, month] }),
+  })
+
+  const byChild: Record<string, MealRecordDTO[]> = {}
+  records.forEach(r => { (byChild[r.childName] ??= []).push(r) })
+  const sortedChildren = Object.keys(byChild).sort()
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-3 flex-wrap">
+        <select value={month} onChange={e => setMonth(Number(e.target.value))}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm bg-white">
+          {monthNames.slice(1).map((n, i) => <option key={i + 1} value={i + 1}>{n}</option>)}
+        </select>
+        <input type="number" value={year} onChange={e => setYear(Number(e.target.value))}
+          className="rounded-lg border border-gray-300 px-3 py-1.5 text-sm w-24" />
+        <Button size="sm" variant="secondary"
+          onClick={() => populateMutation.mutate()}
+          disabled={populateMutation.isPending}>
+          {populateMutation.isPending ? 'A preencher…' : 'Auto-preencher mês'}
+        </Button>
+        {populateMsg && <span className="text-sm text-green-600">{populateMsg}</span>}
+        {populateMutation.isError && (
+          <span className="text-sm text-red-600">{errorMessage(populateMutation.error)}</span>
+        )}
+      </div>
+
+      {isLoading ? (
+        <p className="text-sm text-gray-400">A carregar…</p>
+      ) : records.length === 0 ? (
+        <p className="text-sm text-gray-400 py-4">
+          Sem registos para {monthNames[month]} {year}.
+          Use “Auto-preencher mês” para gerar os registos automaticamente.
+        </p>
+      ) : (
+        <div className="space-y-4">
+          {sortedChildren.map(childName => {
+            const childRecords = byChild[childName].sort((a, b) => a.date.localeCompare(b.date))
+            return (
+              <div key={childName} className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div className="flex items-center justify-between px-4 py-2 bg-gray-50 border-b border-gray-100">
+                  <h3 className="font-semibold text-sm text-gray-900">{childName}</h3>
+                  <span className="text-xs text-gray-500">{childRecords.length} refeições</span>
+                </div>
+                <div className="flex flex-wrap gap-2 p-3">
+                  {childRecords.map(r => (
+                    <div key={r.id} className="flex items-center gap-1 bg-brand-50 text-brand-800 rounded-lg px-2 py-1 text-xs">
+                      <span>{new Date(r.date + 'T12:00:00').toLocaleDateString('pt-PT', { weekday: 'short', day: 'numeric' })}</span>
+                      {r.mealTypeName && <span className="text-brand-500">· {r.mealTypeName}</span>}
+                      <button
+                        onClick={() => deleteMutation.mutate(r.id)}
+                        className="ml-1 text-brand-400 hover:text-red-500 font-bold leading-none"
+                        title="Remover registo"
+                      >×</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          })}
+          <p className="text-xs text-gray-400 pt-1">
+            Total: {records.length} refeições — clique no × para remover um dia.
+          </p>
+        </div>
       )}
     </div>
   )
 }
 
-// ─── Billing Tab ──────────────────────────────────────────────────────────────
 function BillingTab({ schoolYearId }: { schoolYearId: string }) {
   const { t } = useTranslation()
   const now  = new Date()
@@ -228,14 +354,13 @@ function BillingTab({ schoolYearId }: { schoolYearId: string }) {
   )
 }
 
-// ─── Pricing Tab ──────────────────────────────────────────────────────────────
 function PricingTab({ schoolYearId }: { schoolYearId: string }) {
   const { t } = useTranslation()
   const qc = useQueryClient()
   const { data: pricing = [] } = usePricing(schoolYearId)
 
-  const soupEntry    = pricing.find(p => p.mealType === 'com_sopa')
-  const noSoupEntry  = pricing.find(p => p.mealType === 'sem_sopa')
+  const soupEntry   = pricing.find(p => p.mealType === 'com_sopa')
+  const noSoupEntry = pricing.find(p => p.mealType === 'sem_sopa')
 
   const [withSoupSchool,    setWithSoupSchool]    = useState('')
   const [withSoupParent,    setWithSoupParent]    = useState('')
@@ -267,7 +392,6 @@ function PricingTab({ schoolYearId }: { schoolYearId: string }) {
   return (
     <div className="max-w-md space-y-5">
       <p className="text-sm text-gray-500">{t('meals.pricingHint')}</p>
-
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Com Sopa</h3>
         <div className="grid grid-cols-2 gap-3">
@@ -279,7 +403,6 @@ function PricingTab({ schoolYearId }: { schoolYearId: string }) {
             onChange={e => setWithSoupParent(e.target.value)} placeholder="ex: 4.00" />
         </div>
       </div>
-
       <div>
         <h3 className="text-sm font-semibold text-gray-700 mb-2">Sem Sopa</h3>
         <div className="grid grid-cols-2 gap-3">
@@ -291,7 +414,6 @@ function PricingTab({ schoolYearId }: { schoolYearId: string }) {
             onChange={e => setWithoutSoupParent(e.target.value)} placeholder="ex: 3.00" />
         </div>
       </div>
-
       <div className="flex items-center gap-3">
         <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
           {saveMutation.isPending ? t('common.loading') : t('common.save')}
@@ -302,7 +424,68 @@ function PricingTab({ schoolYearId }: { schoolYearId: string }) {
   )
 }
 
-// ─── Children Tab ─────────────────────────────────────────────────────────────
+function AddChildModal({ open, onClose, schoolYearId }: { open: boolean; onClose: () => void; schoolYearId: string }) {
+  const { t } = useTranslation()
+  const qc = useQueryClient()
+  const { data: mealTypes = [] } = useMealTypes()
+  const [form, setForm] = useState({
+    fullName: '', tuitionType: 'mensalidade',
+    mealTypeId: '', mealStartDate: new Date().toISOString().slice(0, 10),
+  })
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const child = await apiClient.post<ChildDTO>('/v1/meals/children', {
+        fullName: form.fullName, tuitionType: form.tuitionType, schoolYearId,
+      })
+      if (form.mealTypeId) {
+        await apiClient.post('/v1/meals/child-meal-plans', {
+          childId: child.id, mealTypeId: form.mealTypeId, startDate: form.mealStartDate,
+        })
+      }
+      return child
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['children'] })
+      onClose()
+    },
+  })
+
+  const activeMealTypes = mealTypes.filter(mt => mt.isActive)
+
+  return (
+    <Modal open={open} onClose={onClose} title={t('meals.addChild')}>
+      <div className="space-y-3">
+        <Input label={t('meals.childName')} value={form.fullName}
+          onChange={e => setForm(f => ({ ...f, fullName: e.target.value }))} />
+        <Input label={t('meals.tuitionType')} value={form.tuitionType}
+          onChange={e => setForm(f => ({ ...f, tuitionType: e.target.value }))} />
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Tipo de refeição *</label>
+          <select value={form.mealTypeId}
+            onChange={e => setForm(f => ({ ...f, mealTypeId: e.target.value }))}
+            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500">
+            <option value="">— Selecionar —</option>
+            {activeMealTypes.map(mt => (
+              <option key={mt.id} value={mt.id}>{mt.name} ({mt.mealsPerWeek}/sem)</option>
+            ))}
+          </select>
+        </div>
+        <Input label="Data de início do plano" type="date" value={form.mealStartDate}
+          onChange={e => setForm(f => ({ ...f, mealStartDate: e.target.value }))} />
+        {mutation.isError && <p className="text-sm text-red-600">{errorMessage(mutation.error)}</p>}
+      </div>
+      <div className="flex justify-end gap-2 pt-2">
+        <Button variant="secondary" onClick={onClose}>{t('common.cancel')}</Button>
+        <Button onClick={() => mutation.mutate()}
+          disabled={mutation.isPending || !form.fullName || !form.mealTypeId}>
+          {mutation.isPending ? t('common.loading') : t('common.save')}
+        </Button>
+      </div>
+    </Modal>
+  )
+}
+
 function ChildrenTab({ schoolYearId }: { schoolYearId: string }) {
   const { t } = useTranslation()
   const { data: children = [], isLoading } = useChildren(schoolYearId)
@@ -341,13 +524,9 @@ function ChildrenTab({ schoolYearId }: { schoolYearId: string }) {
                 <td className="py-2">
                   <button
                     onClick={() => toggleActive.mutate({ id: child.id, isActive: !child.isActive })}
-                    className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${
-                      child.isActive ? 'bg-green-500' : 'bg-gray-300'
-                    }`}
+                    className={`relative inline-flex h-5 w-9 rounded-full transition-colors ${child.isActive ? 'bg-green-500' : 'bg-gray-300'}`}
                   >
-                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                      child.isActive ? 'translate-x-4' : ''
-                    }`} />
+                    <span className={`absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${child.isActive ? 'translate-x-4' : ''}`} />
                   </button>
                 </td>
               </tr>
@@ -358,13 +537,12 @@ function ChildrenTab({ schoolYearId }: { schoolYearId: string }) {
           </tbody>
         </table>
       )}
-      {showAdd   && <AddChildModal open onClose={() => setShowAdd(false)} schoolYearId={schoolYearId} />}
+      {showAdd    && <AddChildModal open onClose={() => setShowAdd(false)} schoolYearId={schoolYearId} />}
       {showImport && <StudentImportModal open onClose={() => setShowImport(false)} schoolYearId={schoolYearId} />}
     </div>
   )
 }
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function MealsPage() {
   const { t } = useTranslation()
   const user    = auth.getUser()
@@ -379,9 +557,10 @@ export default function MealsPage() {
   const yearId = selectedYearId || currentYear?.id || ''
 
   const tabs: { id: Tab; label: string }[] = [
-    { id: 'daily',   label: t('meals.tabDaily') },
-    { id: 'billing', label: t('meals.tabBilling') },
+    { id: 'daily',    label: 'Registo Diário' },
+    { id: 'billing',  label: t('meals.tabBilling') },
     ...(isAdmin ? [
+      { id: 'tipos'    as Tab, label: 'Tipos de Refeição' },
       { id: 'pricing'  as Tab, label: t('meals.tabPricing') },
       { id: 'children' as Tab, label: t('meals.tabChildren') },
     ] : []),
@@ -401,12 +580,9 @@ export default function MealsPage() {
         }
       />
 
-      {/* Tab bar */}
       <div className="px-8 border-b border-gray-200 flex gap-1">
         {tabs.map(tb => (
-          <button
-            key={tb.id}
-            onClick={() => setTab(tb.id)}
+          <button key={tb.id} onClick={() => setTab(tb.id)}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               tab === tb.id
                 ? 'border-brand-600 text-brand-700'
@@ -419,8 +595,9 @@ export default function MealsPage() {
       </div>
 
       <div className="flex-1 overflow-auto px-8 py-6">
-        {tab === 'daily'    && yearId && <DailyTab   schoolYearId={yearId} />}
-        {tab === 'billing'  && yearId && <BillingTab schoolYearId={yearId} />}
+        {tab === 'tipos'    && isAdmin && <MealTypesTab />}
+        {tab === 'daily'    && yearId  && <DailyTab    schoolYearId={yearId} />}
+        {tab === 'billing'  && yearId  && <BillingTab  schoolYearId={yearId} />}
         {tab === 'pricing'  && isAdmin && yearId && <PricingTab  schoolYearId={yearId} />}
         {tab === 'children' && isAdmin && yearId && <ChildrenTab schoolYearId={yearId} />}
       </div>
