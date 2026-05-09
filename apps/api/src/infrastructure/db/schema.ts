@@ -6,13 +6,13 @@ import {
   pgTable, uuid, text, numeric, boolean, timestamp, integer, pgEnum, date, index,
 } from 'drizzle-orm/pg-core'
 
-// ─── Enums ──────────────────────────────────────────────────────────────────
+// ─── Enums ────────────────────────────────────────────────────────────────────────────
 export const roleEnum           = pgEnum('role',           ['admin', 'staff', 'accountant'])
 export const classificationEnum = pgEnum('classification', ['receita', 'despesa'])
 export const salaryTypeEnum     = pgEnum('salary_type',    ['contrato', 'rec_verdes', 'horas', 'terceiros'])
 export const mealTypeEnum       = pgEnum('meal_type',      ['com_sopa', 'sem_sopa'])
 
-// ─── Tables ──────────────────────────────────────────────────────────────────
+// ─── Tables ────────────────────────────────────────────────────────────────────────────
 export const users = pgTable('users', {
   id:               uuid('id').primaryKey().defaultRandom(),
   email:            text('email').notNull().unique(),
@@ -28,7 +28,7 @@ export const users = pgTable('users', {
 
 export const schoolYears = pgTable('school_years', {
   id:        uuid('id').primaryKey().defaultRandom(),
-  name:      text('name').notNull().unique(),   // "2025-26"
+  name:      text('name').notNull().unique(),
   startDate: date('start_date').notNull(),
   endDate:   date('end_date').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
@@ -76,7 +76,7 @@ export const transactions = pgTable('transactions', {
   categoryId:    uuid('category_id').notNull().references(() => categories.id),
   bankAccountId: uuid('bank_account_id').notNull().references(() => bankAccounts.id),
   date:          date('date').notNull(),
-  monthLabel:    text('month_label').notNull(),         // "set.25"
+  monthLabel:    text('month_label').notNull(),
   amount:        numeric('amount', { precision: 12, scale: 2 }).notNull(),
   description:   text('description').notNull().default(''),
   createdBy:     uuid('created_by').notNull().references(() => users.id),
@@ -87,7 +87,7 @@ export const budgetEntries = pgTable('budget_entries', {
   id:            uuid('id').primaryKey().defaultRandom(),
   schoolYearId:  uuid('school_year_id').notNull().references(() => schoolYears.id),
   categoryId:    uuid('category_id').notNull().references(() => categories.id),
-  month:         integer('month').notNull(),             // 1–12
+  month:         integer('month').notNull(),
   plannedAmount: numeric('planned_amount', { precision: 12, scale: 2 }).notNull().default('0'),
 })
 
@@ -97,7 +97,6 @@ export const children = pgTable('children', {
   schoolYearId:    uuid('school_year_id').notNull().references(() => schoolYears.id),
   tuitionType:     text('tuition_type').notNull(),
   isActive:        boolean('is_active').notNull().default(true),
-  // Extended profile
   firstName:       text('first_name'),
   lastName:        text('last_name'),
   birthDate:       date('birth_date'),
@@ -110,19 +109,16 @@ export const children = pgTable('children', {
   photoConsent:    boolean('photo_consent').notNull().default(false),
   enrollmentDate:  date('enrollment_date'),
   planId:          uuid('plan_id').references(() => enrollmentPlans.id),
-  // Parent / guardian 1
   parent1FirstName: text('parent1_first_name'),
   parent1LastName:  text('parent1_last_name'),
   parent1Phone:     text('parent1_phone'),
   parent1Email:     text('parent1_email'),
   parent1Relation:  text('parent1_relation').default('Mãe/Pai'),
-  // Parent / guardian 2
   parent2FirstName: text('parent2_first_name'),
   parent2LastName:  text('parent2_last_name'),
   parent2Phone:     text('parent2_phone'),
   parent2Email:     text('parent2_email'),
   parent2Relation:  text('parent2_relation'),
-  // Emergency contact
   emergencyContact: text('emergency_contact'),
   emergencyPhone:   text('emergency_phone'),
   notes:            text('notes'),
@@ -136,14 +132,35 @@ export const mealPricing = pgTable('meal_pricing', {
   parentPrice:  numeric('parent_price', { precision: 10, scale: 2 }).notNull(),
 })
 
+export const mealTypes = pgTable('meal_types', {
+  id:           uuid('id').primaryKey().defaultRandom(),
+  name:         text('name').notNull(),
+  description:  text('description'),
+  mealsPerWeek: integer('meals_per_week').notNull().default(5),
+  parentPrice:  numeric('parent_price', { precision: 10, scale: 2 }).notNull().default('0'),
+  schoolCost:   numeric('school_cost',  { precision: 10, scale: 2 }).notNull().default('0'),
+  isActive:     boolean('is_active').notNull().default(true),
+  createdAt:    timestamp('created_at').defaultNow().notNull(),
+})
+
+export const childMealPlans = pgTable('child_meal_plans', {
+  id:          uuid('id').primaryKey().defaultRandom(),
+  childId:     uuid('child_id').notNull().references(() => children.id, { onDelete: 'cascade' }),
+  mealTypeId:  uuid('meal_type_id').notNull().references(() => mealTypes.id),
+  startDate:   date('start_date').notNull(),
+  endDate:     date('end_date'),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
+})
+
 export const mealRecords = pgTable('meal_records', {
-  id:        uuid('id').primaryKey().defaultRandom(),
-  childId:   uuid('child_id').notNull().references(() => children.id),
-  date:      date('date').notNull(),
-  mealType:  mealTypeEnum('meal_type').notNull(),
-  billed:    boolean('billed').notNull().default(false),
-  createdBy: uuid('created_by').notNull().references(() => users.id),
-  createdAt: timestamp('created_at').defaultNow().notNull(),
+  id:          uuid('id').primaryKey().defaultRandom(),
+  childId:     uuid('child_id').notNull().references(() => children.id),
+  date:        date('date').notNull(),
+  mealType:    mealTypeEnum('meal_type').notNull(),
+  mealTypeId:  uuid('meal_type_id').references(() => mealTypes.id),
+  billed:      boolean('billed').notNull().default(false),
+  createdBy:   uuid('created_by').notNull().references(() => users.id),
+  createdAt:   timestamp('created_at').defaultNow().notNull(),
 })
 
 export const employees = pgTable('employees', {
@@ -208,8 +225,9 @@ export const salaryEntries = pgTable('salary_entries', {
   salaryType:          salaryTypeEnum('salary_type').notNull(),
   serviceName:         text('service_name'),
   baseAmount:          numeric('base_amount',   { precision: 12, scale: 2 }).notNull(),
-  month:               integer('month').notNull(),
+  month:               integer('month'),
   actualAmount:        numeric('actual_amount', { precision: 12, scale: 2 }).notNull(),
+  recurrence:          text('recurrence').notNull().default('monthly'),
   linkedTransactionId: uuid('linked_transaction_id').references(() => transactions.id),
   createdAt:           timestamp('created_at').defaultNow().notNull(),
 })

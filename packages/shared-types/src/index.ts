@@ -6,7 +6,6 @@ export type Classification  = 'receita' | 'despesa'
 export type SalaryType      = 'contrato' | 'rec_verdes' | 'horas' | 'terceiros'
 export type MealType        = 'com_sopa' | 'sem_sopa'
 
-// ─── Bank Account ─────────────────────────────────────────────────────────────
 export interface BankAccount {
   id: string
   name: string
@@ -14,7 +13,6 @@ export interface BankAccount {
   isActive: boolean
 }
 
-// ─── Pagination ──────────────────────────────────────────────────────────────
 export interface Paginated<T> {
   data: T[]
   total: number
@@ -22,7 +20,6 @@ export interface Paginated<T> {
   pageSize: number
 }
 
-// ─── Transaction ─────────────────────────────────────────────────────────────
 export interface TransactionDTO {
   id: string
   schoolYearId: string
@@ -30,8 +27,8 @@ export interface TransactionDTO {
   categoryName: string
   bankAccountId: string
   bankAccountName: string
-  date: string          // ISO date "2025-09-15"
-  monthLabel: string    // "set.25"
+  date: string
+  monthLabel: string
   amount: number
   description: string
   createdBy: string
@@ -47,7 +44,6 @@ export interface CreateTransactionDTO {
   description: string
 }
 
-// ─── Category ────────────────────────────────────────────────────────────────
 export interface CategoryDTO {
   id: string
   namePt: string
@@ -60,7 +56,6 @@ export interface CategoryDTO {
   isActive: boolean
 }
 
-// ─── School Year ─────────────────────────────────────────────────────────────
 export interface SchoolYearDTO {
   id: string
   name: string
@@ -68,7 +63,6 @@ export interface SchoolYearDTO {
   endDate: string
 }
 
-// ─── Budget ──────────────────────────────────────────────────────────────────
 export interface BudgetEntryDTO {
   id: string
   schoolYearId: string
@@ -89,11 +83,10 @@ export interface MonthlySummaryRow {
   categoryName: string
   classification: Classification
   group: string
-  months: Record<number, { actual: number; planned: number }>  // key = 1–12
+  months: Record<number, { actual: number; planned: number }>
   yearTotal: number
 }
 
-// ─── Meals ───────────────────────────────────────────────────────────────────
 export interface ChildDTO {
   id: string
   fullName: string
@@ -102,12 +95,33 @@ export interface ChildDTO {
   isActive: boolean
 }
 
+export interface MealTypeDTO {
+  id: string
+  name: string
+  description: string | null
+  mealsPerWeek: number
+  parentPrice: number
+  schoolCost: number
+  isActive: boolean
+}
+
+export interface ChildMealPlanDTO {
+  id: string
+  childId: string
+  mealTypeId: string
+  mealTypeName: string
+  startDate: string
+  endDate: string | null
+}
+
 export interface MealRecordDTO {
   id: string
   childId: string
   childName: string
   date: string
   mealType: MealType
+  mealTypeId: string | null
+  mealTypeName: string | null
   billed: boolean
 }
 
@@ -122,7 +136,8 @@ export interface ChildMonthlyBillingDTO {
   parentCharge: number
 }
 
-// ─── Salaries ────────────────────────────────────────────────────────────────
+export type Recurrence = 'monthly' | 'weekly' | 'annual'
+
 export interface SalaryEntryDTO {
   id: string
   schoolYearId: string
@@ -130,12 +145,12 @@ export interface SalaryEntryDTO {
   salaryType: SalaryType
   serviceName: string | null
   baseAmount: number
-  month: number
+  month: number | null
+  recurrence: Recurrence
   actualAmount: number
   linkedTransactionId: string | null
 }
 
-// ─── Employee ────────────────────────────────────────────────────────────────
 export interface EmployeeDTO {
   id: string
   fullName: string
@@ -166,7 +181,6 @@ export interface CreateEmployeeDTO {
   notes?: string
 }
 
-// ─── Activities ───────────────────────────────────────────────────────────────
 export interface ActivityDTO {
   id: string
   schoolYearId: string
@@ -186,7 +200,6 @@ export interface CreateActivityDTO {
   capacity?: number
 }
 
-// ─── Enrollment Plan ─────────────────────────────────────────────────────────
 export type ScheduleType = 'full_time' | 'part_time_days' | 'part_time_mornings' | 'holiday' | 'custom'
 export type BillingCycle = 'monthly' | 'trimestral' | 'annual'
 
@@ -217,14 +230,12 @@ export interface CreateEnrollmentPlanDTO {
   discountFixed?: number
 }
 
-// ─── Student (extended child profile) ────────────────────────────────────────
 export interface StudentDTO {
   id: string
   fullName: string
   schoolYearId: string
   tuitionType: string
   isActive: boolean
-  // Personal
   firstName: string | null
   lastName: string | null
   birthDate: string | null
@@ -237,19 +248,16 @@ export interface StudentDTO {
   photoConsent: boolean
   enrollmentDate: string | null
   plan: EnrollmentPlanDTO | null
-  // Guardian 1
   parent1FirstName: string | null
   parent1LastName: string | null
   parent1Phone: string | null
   parent1Email: string | null
   parent1Relation: string | null
-  // Guardian 2
   parent2FirstName: string | null
   parent2LastName: string | null
   parent2Phone: string | null
   parent2Email: string | null
   parent2Relation: string | null
-  // Emergency
   emergencyContact: string | null
   emergencyPhone: string | null
   notes: string | null
@@ -286,7 +294,6 @@ export interface CreateStudentDTO {
   notes?: string
 }
 
-// ─── Wages ───────────────────────────────────────────────────────────────────
 export type WageContractType  = 'sem_termo' | 'a_termo' | 'rec_verdes' | 'horas'
 export type WageMaritalStatus = 'nao_casado' | 'casado_2_titulares' | 'casado_1_titular'
 
@@ -335,10 +342,9 @@ export interface WagePreviewDTO {
   totalEmployerCost: number
 }
 
-// ─── Import ──────────────────────────────────────────────────────────────────
 export interface ImportRowDTO {
   rowIndex: number
-  date: string           // YYYY-MM-DD
+  date: string
   categoryName: string
   bankAccountName: string
   amount: number
@@ -347,9 +353,9 @@ export interface ImportRowDTO {
 
 export interface ImportPreviewDTO {
   rows: ImportRowDTO[]
-  unknownCategories: string[]   // category names not found in DB
-  unknownAccounts: string[]     // account names not found in DB
-  parseErrors: string[]         // rows that could not be parsed
+  unknownCategories: string[]
+  unknownAccounts: string[]
+  parseErrors: string[]
 }
 
 export interface NewCategoryInput {
@@ -367,7 +373,6 @@ export interface ImportConfirmPayload {
   newCategories: NewCategoryInput[]
 }
 
-// ─── API responses ───────────────────────────────────────────────────────────
 export interface ApiError {
   error: string
   code?: string

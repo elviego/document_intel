@@ -10,6 +10,14 @@ import { requireAuth, requireRole } from '../middleware/auth.js'
 const repo    = new MealRepository(db)
 const billing = new MealBillingService()
 
+const mealTypeBody = z.object({
+  name:         z.string().min(1),
+  description:  z.string().optional(),
+  mealsPerWeek: z.number().int().min(1).max(5).default(5),
+  parentPrice:  z.number().min(0).default(0),
+  schoolCost:   z.number().min(0).default(0),
+})
+
 export const mealRoutes: FastifyPluginAsync = async (app) => {
 
   app.get('/children/:schoolYearId', { preHandler: [requireAuth] }, async (req, reply) => {
@@ -33,7 +41,6 @@ export const mealRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(await repo.updateChild(id, body))
   })
 
-  // POST /v1/meals/children/import/preview
   app.post('/children/import/preview', { preHandler: [requireRole('admin')] }, async (req, reply) => {
     const file = await req.file()
     if (!file) throw new ValidationError('No file uploaded')
@@ -41,7 +48,6 @@ export const mealRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(previewStudentCsv(buffer))
   })
 
-  // POST /v1/meals/children/import/confirm
   app.post('/children/import/confirm', { preHandler: [requireRole('admin')] }, async (req, reply) => {
     const body = z.object({
       schoolYearId: z.string().uuid(),
@@ -110,5 +116,73 @@ export const mealRoutes: FastifyPluginAsync = async (app) => {
       repo.findRecords(undefined, new Date(year, month - 1, 1), new Date(year, month, 0)),
     ])
     return reply.send(billing.calculate(records, pricing, childList, month, year))
+  })
+
+  // ── Meal Types ────────────────────────────────────────────────────────────────────────────
+  app.get('/meal-types', { preHandler: [requireAuth] }, async (_req, reply) => {
+    return reply.send(await repo.findMealTypes())
+  })
+
+  app.post('/meal-types', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    return reply.status(201).send(await repo.createMealType(mealTypeBody.parse(req.body)))
+  })
+
+  app.put('/meal-types/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    const body   = mealTypeBody.partial().extend({ isActive: z.boolean().optional() }).parse(req.body)
+    return reply.send(await repo.updateMealType(id, body))
+  })
+
+  app.delete('/meal-types/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    await repo.deleteMealType(id)
+    return reply.status(204).send()
+  })
+
+  // ── Child Meal Plans ────────────────────────────────────────────────────────────────────────────
+  app.get('/child-meal-plans/:childId', { preHandler: [requireAuth] }, async (req, reply) => {
+    const { childId } = z.object({ childId: z.string().uuid() }).parse(req.params)
+    return reply.send(await repo.findChildMealPlans(childId))
+  })
+
+  app.post('/child-meal-plans', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
+    const body = z.object({
+      childId:     z.string().uuid(),
+      mealTypeId:  z.string().uuid(),
+      startDate:   z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      endDate:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    }).parse(req.body)
+    return reply.status(201).send(await repo.assignMealPlan(body))
+  })
+
+  app.put('/child-meal-plans/:id', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    const body   = z.object({ endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable() }).parse(req.body)
+    return reply.send(await repo.updateMealPlanEnd(id, body.endDate))
+  })
+
+  // ── Records with meal_type_id ────────────────────────────────────────────────────────────────────────────
+  app.post('/records/v2', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
+    const user = req.user as { sub: string }
+    const body = z.object({
+      childId:    z.string().uuid(),
+      date:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+      mealTypeId: z.string().uuid(),
+    }).parse(req.body)
+    return reply.status(201).send(await repo.createRecordV2({
+      childId: body.childId, date: new Date(body.date),
+      mealTypeId: body.mealTypeId, createdBy: user.sub,
+    }))
+  })
+
+  app.post('/records/populate-month', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
+    const user = req.user as { sub: string }
+    const body = z.object({
+      schoolYearId: z.string().uuid(),
+      year:  z.number().int(),
+      month: z.number().int().min(1).max(12),
+    }).parse(req.body)
+    const count = await repo.populateMonth(body.schoolYearId, body.year, body.month, user.sub)
+    return reply.send({ count })
   })
 }
