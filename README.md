@@ -4,6 +4,25 @@ An end-to-end document intelligence pipeline built on **Node.js + Fastify + Reac
 
 ---
 
+## Table of Contents
+
+- [Stack](#stack)
+- [Architecture](#architecture)
+- [Features](#features)
+- [UI Pages](#ui-pages)
+- [Repository Structure](#repository-structure)
+- [Running Locally](#running-locally)
+- [Deploying to Production](#deploying-to-production)
+  - [Railway (API) + Vercel (Web)](#railway-api--vercel-web)
+  - [Railway only (API + Web)](#railway-only-api--web)
+- [OcrResultMetadata Schema](#ocrresultmetadata-schema)
+- [API Overview](#api-overview)
+- [Documentation](#documentation)
+- [Roles](#roles)
+- [Licence](#licence)
+
+---
+
 ## Stack
 
 | Layer | Technology |
@@ -172,15 +191,15 @@ Custom extraction schemas and prompt templates configurable per document type.
 
 ---
 
-## Getting Started
+## Running Locally
 
 ### Prerequisites
 
-- Node.js ≥ 20
-- pnpm ≥ 9 (`npm install -g pnpm`)
-- PostgreSQL (local or [Railway](https://railway.app) free tier)
+- **Node.js ≥ 20**
+- **pnpm ≥ 9** — `npm install -g pnpm`
+- **PostgreSQL** — local install or [Docker](#postgresql-via-docker)
 
-### 1 — Install
+### 1 — Clone & install
 
 ```bash
 git clone https://github.com/elviego/document_intel.git
@@ -188,53 +207,234 @@ cd document_intel
 pnpm install
 ```
 
-### 2 — Configure environment
+### 2 — PostgreSQL via Docker
+
+Skip if you already have a local PostgreSQL instance running.
+
+```bash
+docker run -d \
+  --name document-intel-db \
+  -e POSTGRES_USER=postgres \
+  -e POSTGRES_PASSWORD=postgres \
+  -e POSTGRES_DB=document_intel \
+  -p 5432:5432 \
+  postgres:16-alpine
+```
+
+### 3 — Configure environment
 
 ```bash
 cp apps/api/.env.example apps/api/.env
 cp apps/web/.env.example apps/web/.env.local
 ```
 
-**`apps/api/.env`** — minimum required:
+**`apps/api/.env`**
 
 ```env
-DATABASE_URL=postgresql://postgres:password@localhost:5432/document_intel
-JWT_SECRET=<openssl rand -hex 32>
-RESEND_API_KEY=re_...
+NODE_ENV=development
+PORT=4000
+
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/document_intel
+JWT_SECRET=<run: openssl rand -hex 32>
+
+RESEND_API_KEY=re_...          # https://resend.com — free tier
 EMAIL_FROM=noreply@example.com
+
 CORS_ORIGIN=http://localhost:3000
 APP_URL=http://localhost:3000
 
-# Storage
+# File storage
 OCR_UPLOAD_DIR=uploads/ocr
 OCR_MAX_FILE_MB=50
-STORAGE_PROVIDER=local   # or 's3' — see docs/ocr/deployment.md
+STORAGE_PROVIDER=local
 ```
 
-**`apps/web/.env.local`**:
+**`apps/web/.env.local`**
 
 ```env
 VITE_API_URL=http://localhost:4000
 ```
 
-### 3 — Migrate database
+### 4 — Run migrations
 
 ```bash
 pnpm db:migrate
 # Creates all 7 OCR tables and seeds default per-type configs
 ```
 
-### 4 — Run
+### 5 — Start dev servers
 
 ```bash
-pnpm dev          # web on :3000 · api on :4000
+pnpm dev
+# API  → http://localhost:4000
+# Web  → http://localhost:3000
 ```
 
-### 5 — Configure an LLM provider
+Or run individually:
 
-Open `http://localhost:3000/ocr/config` → **LLM Providers** → **+ Add provider**.
+```bash
+pnpm --filter @fin-tribe/api dev
+pnpm --filter @fin-tribe/web dev
+```
 
-No LLM is required for plain OCR — structured extraction is optional.
+### 6 — Create your first admin user
+
+```bash
+# Seed an admin account (adjust the script path as needed)
+pnpm db:seed
+```
+
+Or call the invite endpoint directly:
+
+```bash
+curl -X POST http://localhost:4000/v1/auth/invite \
+  -H "Content-Type: application/json" \
+  -d '{ "email": "admin@example.com", "role": "admin", "name": "Admin" }'
+```
+
+### 7 — Configure an LLM provider _(optional)_
+
+Open `http://localhost:3000/ocr/config` → **LLM Providers** → **+ Add provider**.  
+Plain OCR works without an LLM — structured extraction is the optional second stage.
+
+---
+
+## Deploying to Production
+
+### Railway (API) + Vercel (Web)
+
+The recommended production setup: **Railway** hosts the API and PostgreSQL database, **Vercel** hosts the React frontend.
+
+```
+Browser → Vercel (static React) → Railway API → Railway PostgreSQL
+                                              → S3 / R2 (files)
+```
+
+---
+
+#### Step 1 — PostgreSQL on Railway
+
+1. [railway.app](https://railway.app) → **New project** → **Provision PostgreSQL**
+2. Click the PostgreSQL service → **Connect** tab → copy **`DATABASE_URL`**
+3. Run migrations from your local machine:
+
+```bash
+DATABASE_URL=<copied url> pnpm db:migrate
+```
+
+---
+
+#### Step 2 — API on Railway
+
+1. In the same Railway project → **+ New service** → **GitHub repo** → select this repo
+2. Railway auto-detects the `apps/api` package. If not, set:
+   - **Root directory**: `apps/api`
+   - **Build command**: `pnpm install && pnpm build`
+   - **Start command**: `node dist/main.js`
+3. Go to the API service → **Variables** → add all required variables:
+
+```env
+NODE_ENV=production
+PORT=4000
+
+DATABASE_URL=${{Postgres.DATABASE_URL}}   # Railway reference variable
+
+JWT_SECRET=<openssl rand -hex 32>
+RESEND_API_KEY=re_...
+EMAIL_FROM=noreply@yourdomain.com
+
+CORS_ORIGIN=https://your-app.vercel.app   # set after Vercel deploy
+APP_URL=https://your-app.vercel.app
+
+# Storage — use S3/R2 in production
+STORAGE_PROVIDER=s3
+S3_BUCKET=your-bucket
+S3_REGION=auto
+S3_ACCESS_KEY=...
+S3_SECRET_KEY=...
+S3_ENDPOINT=https://<account>.r2.cloudflarestorage.com   # R2 only
+
+OCR_MAX_FILE_MB=50
+```
+
+4. **Generate domain** → Railway service → **Settings** → **Networking** → **Generate Domain**  
+   Copy the Railway API URL (e.g. `https://api-production-xxxx.up.railway.app`)
+
+---
+
+#### Step 3 — Web on Vercel
+
+1. [vercel.com](https://vercel.com) → **Add New Project** → import this GitHub repo
+2. Configure the project:
+   - **Framework Preset**: Vite
+   - **Root Directory**: `apps/web`
+   - **Build command**: `pnpm build`
+   - **Output directory**: `dist`
+3. **Environment Variables** → add:
+
+```env
+VITE_API_URL=https://api-production-xxxx.up.railway.app
+```
+
+4. Click **Deploy**. Vercel gives you a URL like `https://your-app.vercel.app`.
+
+5. **Go back to Railway** → update `CORS_ORIGIN` and `APP_URL` to your Vercel URL → Railway redeploys automatically.
+
+---
+
+#### Step 4 — Custom domains _(optional)_
+
+**Vercel**: Project → **Settings** → **Domains** → add `app.yourdomain.com`  
+**Railway**: Service → **Settings** → **Networking** → **Custom Domain** → add `api.yourdomain.com`
+
+Update `VITE_API_URL`, `CORS_ORIGIN`, and `APP_URL` to match.
+
+---
+
+#### Step 5 — Configure LLM providers
+
+Open your Vercel URL → `/ocr/config` → **LLM Providers** → **+ Add provider**.
+
+---
+
+### Railway only (API + Web)
+
+Host both API and web frontend on Railway as two separate services from the same repo.
+
+#### API service — same as Step 2 above.
+
+#### Web service
+
+1. In the Railway project → **+ New service** → same GitHub repo
+2. Set:
+   - **Root directory**: `apps/web`
+   - **Build command**: `pnpm install && pnpm build`
+   - **Start command**: `npx serve dist -p $PORT`  
+     _(install `serve`: add `"serve": "^14"` to `apps/web/package.json` devDependencies)_
+3. **Variables**:
+
+```env
+VITE_API_URL=https://<api-service-railway-domain>
+```
+
+4. Generate a domain for the web service.
+5. Update `CORS_ORIGIN` and `APP_URL` in the API service to the web domain.
+
+---
+
+### Environment variable reference
+
+| Variable | Local | Railway API | Vercel Web |
+|---|---|---|---|
+| `DATABASE_URL` | local postgres | Railway reference | — |
+| `JWT_SECRET` | any string | strong random | — |
+| `RESEND_API_KEY` | optional | required | — |
+| `CORS_ORIGIN` | `http://localhost:3000` | Vercel URL | — |
+| `APP_URL` | `http://localhost:3000` | Vercel URL | — |
+| `STORAGE_PROVIDER` | `local` | `s3` | — |
+| `S3_*` | — | set if s3 | — |
+| `OCR_MAX_FILE_MB` | `50` | `50` | — |
+| `VITE_API_URL` | `http://localhost:4000` | — | Railway API URL |
 
 ---
 
@@ -292,21 +492,6 @@ Schema is inspired by **W3C Web Annotation** and **ISO/TS 8000** data quality co
 
 ---
 
-## Documentation
-
-| Page | Description |
-|---|---|
-| [Architecture](docs/ocr/architecture.md) | DDD layers, data flow diagrams, DB schema, engine selection |
-| [API Reference](docs/ocr/api-reference.md) | All endpoints, request/response shapes, auth, error codes |
-| [LLM Providers](docs/ocr/llm-providers.md) | Setup for all 5 provider types, extraction schemas, custom prompts |
-| [Metadata Schema](docs/ocr/metadata-schema.md) | Full OcrResultMetadata field reference + CSV mapping |
-| [Configuration](docs/ocr/configuration.md) | Env vars, migrations, per-type OCR settings, language codes |
-| [Webhooks](docs/ocr/webhooks.md) | Events, HMAC signing, Node.js/Python verification, integrations |
-| [Metrics & Analytics](docs/ocr/metrics.md) | KPI queries, trending SQL, cost estimation |
-| [Deployment](docs/ocr/deployment.md) | Local · S3 · Cloudflare R2 · MinIO · Railway · Docker |
-
----
-
 ## API Overview
 
 ```
@@ -337,6 +522,21 @@ POST   /v1/ocr/webhooks               Create webhook
 PATCH  /v1/ocr/webhooks/:id           Update webhook
 DELETE /v1/ocr/webhooks/:id           Delete webhook
 ```
+
+---
+
+## Documentation
+
+| Page | Description |
+|---|---|
+| [Architecture](docs/ocr/architecture.md) | DDD layers, data flow diagrams, DB schema, engine selection |
+| [API Reference](docs/ocr/api-reference.md) | All endpoints, request/response shapes, auth, error codes |
+| [LLM Providers](docs/ocr/llm-providers.md) | Setup for all 5 provider types, extraction schemas, custom prompts |
+| [Metadata Schema](docs/ocr/metadata-schema.md) | Full OcrResultMetadata field reference + CSV mapping |
+| [Configuration](docs/ocr/configuration.md) | Env vars, migrations, per-type OCR settings, language codes |
+| [Webhooks](docs/ocr/webhooks.md) | Events, HMAC signing, Node.js/Python verification, integrations |
+| [Metrics & Analytics](docs/ocr/metrics.md) | KPI queries, trending SQL, cost estimation |
+| [Deployment](docs/ocr/deployment.md) | Local · S3 · Cloudflare R2 · MinIO · Railway · Docker |
 
 ---
 
