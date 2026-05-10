@@ -7,17 +7,12 @@ const s = (C: React.LazyExoticComponent<() => JSX.Element>) => (
   <Suspense fallback={<Spinner />}><C /></Suspense>
 )
 
-// Auth (invite accept only — login removed)
-const AcceptInvitePage = lazy(() => import('@/features/auth/AcceptInvitePage'))
-
-// OCR pages
 const OcrPage         = lazy(() => import('@/features/ocr/OcrPage'))
 const OcrDocumentPage = lazy(() => import('@/features/ocr/OcrDocumentPage'))
 const OcrConfigPage   = lazy(() => import('@/features/ocr/OcrConfigPage'))
 const OcrMetricsPage  = lazy(() => import('@/features/ocr/OcrMetricsPage'))
 
 export const router: ReturnType<typeof createBrowserRouter> = createBrowserRouter([
-  { path: '/auth/accept-invite', element: s(AcceptInvitePage) },
   {
     path: '/',
     element: <AppLayout />,
