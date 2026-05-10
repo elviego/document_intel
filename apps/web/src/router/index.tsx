@@ -1,29 +1,14 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import { lazy, Suspense } from 'react'
-import { AppLayout }   from '@/components/layout/AppLayout'
-import { AuthLayout }  from '@/components/layout/AuthLayout'
-import { RequireAuth } from '@/components/auth/RequireAuth'
+import { AppLayout } from '@/components/layout/AppLayout'
 
 const Spinner = () => <div className="p-8 text-gray-400 text-sm">Loading…</div>
 const s = (C: React.LazyExoticComponent<() => JSX.Element>) => (
   <Suspense fallback={<Spinner />}><C /></Suspense>
 )
 
-// Auth pages
-const LoginPage         = lazy(() => import('@/features/auth/LoginPage'))
-const AcceptInvitePage  = lazy(() => import('@/features/auth/AcceptInvitePage'))
-
-// App pages
-const DashboardPage    = lazy(() => import('@/features/dashboard/DashboardPage'))
-const TransactionsPage = lazy(() => import('@/features/transactions/TransactionsPage'))
-const SummaryPage      = lazy(() => import('@/features/summary/SummaryPage'))
-const SalariesPage     = lazy(() => import('@/features/salaries/SalariesPage'))
-const MealsPage        = lazy(() => import('@/features/meals/MealsPage'))
-const BudgetPage       = lazy(() => import('@/features/budget/BudgetPage'))
-const EmployeesPage       = lazy(() => import('@/features/employees/EmployeesPage'))
-const ActivitiesPage      = lazy(() => import('@/features/activities/ActivitiesPage'))
-const StudentsPage        = lazy(() => import('@/features/students/StudentsPage'))
-const EnrollmentPlansPage = lazy(() => import('@/features/enrollment-plans/EnrollmentPlansPage'))
+// Auth (invite accept only — login removed)
+const AcceptInvitePage = lazy(() => import('@/features/auth/AcceptInvitePage'))
 
 // OCR pages
 const OcrPage         = lazy(() => import('@/features/ocr/OcrPage'))
@@ -31,48 +16,18 @@ const OcrDocumentPage = lazy(() => import('@/features/ocr/OcrDocumentPage'))
 const OcrConfigPage   = lazy(() => import('@/features/ocr/OcrConfigPage'))
 const OcrMetricsPage  = lazy(() => import('@/features/ocr/OcrMetricsPage'))
 
-// Admin pages
-const CategoriesPage   = lazy(() => import('@/features/categories/CategoriesPage'))
-const BankAccountsPage = lazy(() => import('@/features/bank-accounts/BankAccountsPage'))
-const SchoolYearsPage  = lazy(() => import('@/features/school-years/SchoolYearsPage'))
-const UsersPage        = lazy(() => import('@/features/users/UsersPage'))
-
 export const router: ReturnType<typeof createBrowserRouter> = createBrowserRouter([
-  {
-    path: '/auth',
-    element: <AuthLayout />,
-    children: [
-      { path: 'login',          element: s(LoginPage) },
-      { path: 'accept-invite',  element: s(AcceptInvitePage) },
-    ],
-  },
+  { path: '/auth/accept-invite', element: s(AcceptInvitePage) },
   {
     path: '/',
-    element: <RequireAuth><AppLayout /></RequireAuth>,
+    element: <AppLayout />,
     children: [
-      { index: true,            element: <Navigate to="/dashboard" replace /> },
-      { path: 'dashboard',      element: s(DashboardPage) },
-      { path: 'transactions',   element: s(TransactionsPage) },
-      { path: 'summary',        element: s(SummaryPage) },
-      { path: 'salaries',       element: <RequireAuth role="admin">{s(SalariesPage)}</RequireAuth> },
-      { path: 'meals',          element: s(MealsPage) },
-      { path: 'budget',         element: s(BudgetPage) },
-      { path: 'employees',         element: s(EmployeesPage) },
-      { path: 'activities',        element: s(ActivitiesPage) },
-      { path: 'students',          element: s(StudentsPage) },
-      // Admin-only
-      // OCR module
-      { path: 'ocr',              element: s(OcrPage) },
-      { path: 'ocr/:id',          element: s(OcrDocumentPage) },
-      { path: 'ocr/config',       element: <RequireAuth role="admin">{s(OcrConfigPage)}</RequireAuth> },
-      { path: 'ocr/metrics',      element: <RequireAuth role="admin">{s(OcrMetricsPage)}</RequireAuth> },
-      // Admin-only
-      { path: 'enrollment-plans',  element: <RequireAuth role="admin">{s(EnrollmentPlansPage)}</RequireAuth> },
-      { path: 'categories',        element: <RequireAuth role="admin">{s(CategoriesPage)}</RequireAuth> },
-      { path: 'bank-accounts',     element: <RequireAuth role="admin">{s(BankAccountsPage)}</RequireAuth> },
-      { path: 'school-years',      element: <RequireAuth role="admin">{s(SchoolYearsPage)}</RequireAuth> },
-      { path: 'users',             element: <RequireAuth role="admin">{s(UsersPage)}</RequireAuth> },
+      { index: true,         element: <Navigate to="/ocr" replace /> },
+      { path: 'ocr',         element: s(OcrPage) },
+      { path: 'ocr/config',  element: s(OcrConfigPage) },
+      { path: 'ocr/metrics', element: s(OcrMetricsPage) },
+      { path: 'ocr/:id',     element: s(OcrDocumentPage) },
     ],
   },
-  { path: '*', element: <Navigate to="/dashboard" replace /> },
+  { path: '*', element: <Navigate to="/ocr" replace /> },
 ])

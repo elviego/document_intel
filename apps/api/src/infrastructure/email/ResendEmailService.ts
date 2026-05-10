@@ -10,16 +10,16 @@ export class ResendEmailService implements IEmailService {
     await this.client.emails.send({
       from: this.from,
       to,
-      subject: 'Convite para Tribo Verde — Gestão Financeira',
+      subject: 'OCR Studio — You have been invited',
       html: `
-        <p>Olá ${fullName},</p>
-        <p>${invitedByName} convidou-te para aceder à plataforma financeira da Tribo Verde.</p>
+        <p>Hi ${fullName},</p>
+        <p>${invitedByName} has invited you to access OCR Studio.</p>
         <p>
-          <a href="${acceptUrl}" style="background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
-            Aceitar convite
+          <a href="${acceptUrl}" style="background:#4f46e5;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
+            Accept invitation
           </a>
         </p>
-        <p>Este link expira em 72 horas.</p>
+        <p>This link expires in 72 hours.</p>
       `,
     })
   }
@@ -28,16 +28,16 @@ export class ResendEmailService implements IEmailService {
     await this.client.emails.send({
       from: this.from,
       to,
-      subject: 'Repor palavra-passe — Tribo Verde',
+      subject: 'OCR Studio — Password reset',
       html: `
-        <p>Olá ${fullName},</p>
-        <p>Clica no link abaixo para repor a tua palavra-passe. O link expira em 1 hora.</p>
+        <p>Hi ${fullName},</p>
+        <p>Click the link below to reset your password. The link expires in 1 hour.</p>
         <p>
-          <a href="${resetUrl}" style="background:#16a34a;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
-            Repor palavra-passe
+          <a href="${resetUrl}" style="background:#4f46e5;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;">
+            Reset password
           </a>
         </p>
-        <p>Se não pediste esta alteração, ignora este email.</p>
+        <p>If you did not request this, you can safely ignore this email.</p>
       `,
     })
   }
