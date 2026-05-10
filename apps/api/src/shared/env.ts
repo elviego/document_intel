@@ -1,4 +1,19 @@
+import { existsSync, readFileSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 import { z } from 'zod'
+
+// Load .env relative to this file's location so it works regardless of CWD
+if (!process.env['DATABASE_URL']) {
+  const dir = dirname(fileURLToPath(import.meta.url))
+  const envPath = resolve(dir, '../../.env')
+  if (existsSync(envPath)) {
+    for (const line of readFileSync(envPath, 'utf8').split('\n')) {
+      const m = line.match(/^([A-Za-z_][A-Za-z0-9_]*)=(.*)$/)
+      if (m && !process.env[m[1]]) process.env[m[1]] = m[2].trim()
+    }
+  }
+}
 
 const schema = z.object({
   NODE_ENV:       z.enum(['development', 'production', 'test']).default('development'),
