@@ -5,8 +5,8 @@ import en from '../locales/en.json'
 
 i18n.use(initReactI18next).init({
   resources: { pt: { translation: pt }, en: { translation: en } },
-  lng: localStorage.getItem('lang') ?? 'pt',
-  fallbackLng: 'pt',
+  lng: localStorage.getItem('lang') ?? 'en',
+  fallbackLng: 'en',
   interpolation: { escapeValue: false },
 })
 
