@@ -13,7 +13,8 @@
     "activities": "Activities",
     "users": "Users",
     "students": "Students",
-    "enrollmentPlans": "Enrollment Plans"
+    "enrollmentPlans": "Enrollment Plans",
+    "ocr": "OCR / Documents"
   },
   "common": {
     "save": "Save",
@@ -137,5 +138,38 @@
     "email": "Email",
     "role": "Role",
     "empty": "No users registered."
+  },
+  "ocr": {
+    "title": "OCR / Documents",
+    "documents": "documents",
+    "settings": "Settings",
+    "metricsNav": "Metrics",
+    "metrics": "OCR Metrics",
+    "metricsSubtitle": "Confidence scores, processing times, and model usage",
+    "uploadDocument": "Upload Document",
+    "upload": "Upload",
+    "autoDetectType": "Auto-detect document type using AI",
+    "documentType": "Document type",
+    "processAfterUpload": "Process immediately after upload",
+    "status": "Status",
+    "detection": "Detection",
+    "pages": "Pages",
+    "size": "Size",
+    "fileName": "File name",
+    "uploadedAt": "Uploaded",
+    "processedAt": "Processed",
+    "confidence": "Confidence",
+    "llmModel": "LLM model",
+    "back": "Back to documents",
+    "process": "Run OCR",
+    "reProcess": "Re-process",
+    "results": "OCR Results",
+    "notYetProcessed": "This document has not been processed yet.",
+    "processingMessage": "OCR processing in progress. The page refreshes automatically…",
+    "processingFailed": "Processing failed",
+    "noDocuments": "No documents uploaded yet.",
+    "uploadFirst": "Upload your first document",
+    "configTitle": "OCR Configuration",
+    "configSubtitle": "Manage LLM providers and per-document-type settings"
   }
 }

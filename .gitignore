@@ -8,6 +8,12 @@ build/
 .next/
 out/
 
+# TypeScript compiled artifacts — web/src is TypeScript; never commit compiled JS
+apps/web/src/**/*.js
+apps/web/src/**/*.d.ts
+apps/web/vite.config.js
+apps/web/vite.config.d.ts
+
 # Turborepo cache
 .turbo/
 
