@@ -2,17 +2,26 @@ import clsx from 'clsx'
 
 type Variant = 'green' | 'red' | 'gray' | 'blue' | 'yellow'
 
-const styles: Record<Variant, string> = {
-  green:  'bg-green-50 text-green-700 ring-green-600/20',
-  red:    'bg-red-50 text-red-700 ring-red-600/20',
-  gray:   'bg-gray-50 text-gray-600 ring-gray-500/10',
-  blue:   'bg-blue-50 text-blue-700 ring-blue-700/10',
-  yellow: 'bg-yellow-50 text-yellow-800 ring-yellow-600/20',
+const dot: Record<Variant, string> = {
+  green:  'bg-emerald-400',
+  red:    'bg-red-400',
+  gray:   'bg-gray-400',
+  blue:   'bg-brand-400',
+  yellow: 'bg-amber-400',
+}
+
+const text: Record<Variant, string> = {
+  green:  'text-emerald-700',
+  red:    'text-red-600',
+  gray:   'text-gray-500',
+  blue:   'text-brand-600',
+  yellow: 'text-amber-700',
 }
 
 export function Badge({ children, variant = 'gray' }: { children: React.ReactNode; variant?: Variant }) {
   return (
-    <span className={clsx('inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ring-1 ring-inset', styles[variant])}>
+    <span className={clsx('inline-flex items-center gap-1.5 text-xs font-mono uppercase tracking-wide', text[variant])}>
+      <span className={clsx('w-1.5 h-1.5 rounded-full flex-shrink-0', dot[variant])} />
       {children}
     </span>
   )
