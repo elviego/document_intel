@@ -1,5 +1,4 @@
 import { createReadStream } from 'node:fs'
-import { extname } from 'node:path'
 import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { db } from '../../db/client.js'
@@ -7,7 +6,6 @@ import { OcrRepository } from '../../repositories/OcrRepository.js'
 import { UploadDocument } from '../../../application/use-cases/ocr/UploadDocument.js'
 import { ProcessDocument } from '../../../application/use-cases/ocr/ProcessDocument.js'
 import { getFileStorage } from '../../storage/FileStorageFactory.js'
-import { requireAuth, requireRole } from '../middleware/auth.js'
 import { ValidationError, NotFoundError } from '../../../shared/errors.js'
 import { env } from '../../../shared/env.js'
 import type { OcrDocumentType } from '../../../domain/entities/OcrDocument.js'
@@ -24,24 +22,22 @@ function parseDocType(raw: unknown): OcrDocumentType | undefined {
 export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
 
   // ── Upload single document ────────────────────────────────────────────────
-  app.post('/', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
+  app.post('/', async (req, reply) => {
     const file = await req.file({ limits: { fileSize: env.OCR_MAX_FILE_MB * 1024 * 1024 } })
     if (!file) throw new ValidationError('No file uploaded')
 
     const buffer        = await file.toBuffer()
     const autoDetect    = (file.fields['autoDetectType'] as any)?.value !== 'false'
     const documentType  = parseDocType((file.fields['documentType'] as any)?.value)
-    const user          = req.user as { sub: string }
     const autoProcess   = (file.fields['autoProcess'] as any)?.value === 'true'
 
     const doc = await new UploadDocument(repo, storage).execute({
       fileName: file.filename, mimeType: file.mimetype, buffer,
-      autoDetectType: autoDetect, documentType, uploadedBy: user.sub,
+      autoDetectType: autoDetect, documentType, uploadedBy: 'system',
       maxFileMb: env.OCR_MAX_FILE_MB,
     })
 
     if (autoProcess) {
-      // fire-and-forget; client polls status
       new ProcessDocument(repo, storage).execute(doc.id).catch(() => {})
     }
 
@@ -49,9 +45,8 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // ── Batch upload ──────────────────────────────────────────────────────────
-  app.post('/batch', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
+  app.post('/batch', async (req, reply) => {
     const parts = req.files({ limits: { fileSize: env.OCR_MAX_FILE_MB * 1024 * 1024 } })
-    const user  = req.user as { sub: string }
     const results: { fileName: string; id?: string; error?: string }[] = []
 
     for await (const part of parts) {
@@ -64,7 +59,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
 
         const doc = await new UploadDocument(repo, storage).execute({
           fileName: part.filename, mimeType: part.mimetype, buffer,
-          autoDetectType: autoDetect, documentType, uploadedBy: user.sub,
+          autoDetectType: autoDetect, documentType, uploadedBy: 'system',
           maxFileMb: env.OCR_MAX_FILE_MB,
         })
 
@@ -82,7 +77,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // ── List documents ────────────────────────────────────────────────────────
-  app.get('/', { preHandler: [requireAuth] }, async (req, reply) => {
+  app.get('/', async (req, reply) => {
     const q = z.object({
       limit:  z.coerce.number().int().min(1).max(200).default(50),
       offset: z.coerce.number().int().min(0).default(0),
@@ -93,7 +88,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // ── Get document + latest job ─────────────────────────────────────────────
-  app.get('/:id', { preHandler: [requireAuth] }, async (req, reply) => {
+  app.get('/:id', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     const doc    = await repo.findDocumentById(id)
     if (!doc) throw new NotFoundError('Document')
@@ -102,7 +97,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // ── Serve raw file (for preview) ─────────────────────────────────────────
-  app.get('/:id/file', { preHandler: [requireAuth] }, async (req, reply) => {
+  app.get('/:id/file', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     const doc    = await repo.findDocumentById(id)
     if (!doc) throw new NotFoundError('Document')
@@ -112,7 +107,6 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
       return reply.redirect(url, 302)
     }
 
-    // Local: stream the file directly
     try {
       const stream = createReadStream(doc.filePath)
       return reply
@@ -125,7 +119,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // ── Process with optional override ───────────────────────────────────────
-  app.post('/:id/process', { preHandler: [requireRole('admin', 'staff')] }, async (req, reply) => {
+  app.post('/:id/process', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     const body   = z.object({
       documentType:  z.enum(['invoice','receipt','contract','id_document','medical','bank_statement','form','other']).optional(),
@@ -138,7 +132,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // ── Export result ────────────────────────────────────────────────────────
-  app.get('/:id/export', { preHandler: [requireAuth] }, async (req, reply) => {
+  app.get('/:id/export', async (req, reply) => {
     const { id }     = z.object({ id: z.string().uuid() }).parse(req.params)
     const { format } = z.object({ format: z.enum(['json','csv']).default('json') }).parse(req.query)
 
@@ -156,7 +150,6 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
         .send(JSON.stringify(job.metadata, null, 2))
     }
 
-    // CSV: flatten structuredData + OCR summary
     const { metadata } = job
     const rows: string[][] = [
       ['field', 'value'],
@@ -188,7 +181,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // ── Delete document ──────────────────────────────────────────────────────
-  app.delete('/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.delete('/:id', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     const doc = await repo.findDocumentById(id)
     if (!doc) throw new NotFoundError('Document')
@@ -198,12 +191,12 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // ── Metrics aggregate ────────────────────────────────────────────────────
-  app.get('/metrics/aggregate', { preHandler: [requireRole('admin')] }, async (_req, reply) => {
+  app.get('/metrics/aggregate', async (_req, reply) => {
     return reply.send(await repo.metricsAggregate())
   })
 
   // ── Metrics list ─────────────────────────────────────────────────────────
-  app.get('/metrics/list', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.get('/metrics/list', async (req, reply) => {
     const q = z.object({
       limit:      z.coerce.number().int().min(1).max(500).default(100),
       offset:     z.coerce.number().int().min(0).default(0),
@@ -212,8 +205,8 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
     return reply.send(await repo.listMetrics(q))
   })
 
-  // ── Metrics trending (time-series) ────────────────────────────────────────
-  app.get('/metrics/trending', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  // ── Metrics trending ─────────────────────────────────────────────────────
+  app.get('/metrics/trending', async (req, reply) => {
     const q = z.object({
       days:         z.coerce.number().int().min(1).max(365).default(30),
       documentType: z.enum(['invoice','receipt','contract','id_document','medical','bank_statement','form','other']).optional(),

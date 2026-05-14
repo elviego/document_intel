@@ -2,7 +2,6 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { db } from '../../db/client.js'
 import { OcrRepository } from '../../repositories/OcrRepository.js'
-import { requireRole } from '../middleware/auth.js'
 import { NotFoundError } from '../../../shared/errors.js'
 
 const repo = new OcrRepository(db)
@@ -15,14 +14,14 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
   // ── LLM Providers ───────────────────────────────────────────────────────────
 
   // GET /v1/ocr/providers
-  app.get('/providers', { preHandler: [requireRole('admin')] }, async (_req, reply) => {
+  app.get('/providers', async (_req, reply) => {
     const providers = await repo.listProviders()
     // Never expose raw API keys in the list
     return reply.send(providers.map(p => ({ ...p, apiKey: p.apiKey ? '***' : null })))
   })
 
   // POST /v1/ocr/providers
-  app.post('/providers', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.post('/providers', async (req, reply) => {
     const body = z.object({
       name:         z.string().min(1).max(100),
       providerType: providerTypeEnum,
@@ -46,7 +45,7 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // PATCH /v1/ocr/providers/:id
-  app.patch('/providers/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.patch('/providers/:id', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     const body = z.object({
       name:         z.string().min(1).max(100).optional(),
@@ -63,7 +62,7 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // PUT /v1/ocr/providers/:id/default  — set as default
-  app.put('/providers/:id/default', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.put('/providers/:id/default', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     const existing = await repo.findProviderById(id)
     if (!existing) throw new NotFoundError('LLM provider')
@@ -72,7 +71,7 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // DELETE /v1/ocr/providers/:id
-  app.delete('/providers/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.delete('/providers/:id', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     await repo.deleteProvider(id)
     return reply.status(204).send()
@@ -81,12 +80,12 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
   // ── Document-type configs ────────────────────────────────────────────────────
 
   // GET /v1/ocr/configs
-  app.get('/configs', { preHandler: [requireRole('admin')] }, async (_req, reply) => {
+  app.get('/configs', async (_req, reply) => {
     return reply.send(await repo.listConfigs())
   })
 
   // GET /v1/ocr/configs/:documentType
-  app.get('/configs/:documentType', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.get('/configs/:documentType', async (req, reply) => {
     const { documentType } = z.object({ documentType: docTypeEnum }).parse(req.params)
     const cfg = await repo.findConfigByType(documentType)
     if (!cfg) throw new NotFoundError('Config')
@@ -94,7 +93,7 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // PUT /v1/ocr/configs/:documentType  — upsert
-  app.put('/configs/:documentType', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.put('/configs/:documentType', async (req, reply) => {
     const { documentType } = z.object({ documentType: docTypeEnum }).parse(req.params)
     const body = z.object({
       ocrEngine:            z.string().min(1).optional(),
@@ -122,19 +121,19 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // GET /v1/ocr/webhooks
-  app.get('/webhooks', { preHandler: [requireRole('admin')] }, async (_req, reply) => {
+  app.get('/webhooks', async (_req, reply) => {
     return reply.send(await repo.listWebhooks())
   })
 
   // POST /v1/ocr/webhooks
-  app.post('/webhooks', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.post('/webhooks', async (req, reply) => {
     const body = webhookBody.parse(req.body)
     const wh   = await repo.createWebhook({ ...body, secret: body.secret ?? null })
     return reply.status(201).send(wh)
   })
 
   // PATCH /v1/ocr/webhooks/:id
-  app.patch('/webhooks/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.patch('/webhooks/:id', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     const body   = webhookBody.partial().parse(req.body)
     const wh     = await repo.updateWebhook(id, { ...body, secret: body.secret ?? undefined })
@@ -142,7 +141,7 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
   })
 
   // DELETE /v1/ocr/webhooks/:id
-  app.delete('/webhooks/:id', { preHandler: [requireRole('admin')] }, async (req, reply) => {
+  app.delete('/webhooks/:id', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
     await repo.deleteWebhook(id)
     return reply.status(204).send()
