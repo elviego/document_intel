@@ -14,7 +14,7 @@ async function getDocument(buffer: Buffer) {
   return pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
 }
 
-const MIN_TEXT_CHARS_PER_PAGE = 50
+const MIN_TEXT_CHARS_PER_PAGE = 100
 
 export class PdfExtractor implements IOcrEngine {
   readonly name = 'pdf-parse'
@@ -51,7 +51,9 @@ export class PdfExtractor implements IOcrEngine {
       })
     }
 
-    const hasText = totalText.trim().length > MIN_TEXT_CHARS_PER_PAGE * pageCount * 0.3
+    // Require most pages to have substantial text before trusting pdfjs
+    const pagesWithText = pages.filter(p => p.rawText.length >= MIN_TEXT_CHARS_PER_PAGE).length
+    const hasText = pagesWithText >= Math.ceil(pageCount * 0.5)
 
     // Scanned PDF — fall back to Tesseract via rendered images
     if (!hasText) {
@@ -73,7 +75,9 @@ export class PdfExtractor implements IOcrEngine {
       return emptyResult()
     }
 
-    const { createCanvas } = await import('canvas')
+    const { createCanvas } = await import('canvas').catch(e => {
+      throw new Error(`canvas package not available — install native deps (brew install pkg-config cairo pango libpng jpeg giflib librsvg): ${e.message}`)
+    }) as any
     const tesseract = new TesseractEngine()
     const pages: OcrPageResult[] = []
     const tmpFiles: string[] = []
