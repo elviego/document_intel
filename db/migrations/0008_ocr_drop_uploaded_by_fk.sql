@@ -1,0 +1,1 @@
+ALTER TABLE ocr_documents DROP CONSTRAINT IF EXISTS ocr_documents_uploaded_by_users_id_fk;

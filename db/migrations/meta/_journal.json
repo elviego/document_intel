@@ -8,6 +8,7 @@
     {"idx": 3, "version": "7", "when": 1746800000000, "tag": "0004_students_plans_wages", "breakpoints": true},
     {"idx": 4, "version": "7", "when": 1746900000000, "tag": "0005_meal_types_salary_recurrence", "breakpoints": true},
     {"idx": 5, "version": "7", "when": 1747000000000, "tag": "0006_ocr_module", "breakpoints": true},
-    {"idx": 6, "version": "7", "when": 1747100000000, "tag": "0007_ocr_webhooks", "breakpoints": true}
+    {"idx": 6, "version": "7", "when": 1747100000000, "tag": "0007_ocr_webhooks", "breakpoints": true},
+    {"idx": 7, "version": "7", "when": 1747200000000, "tag": "0008_ocr_drop_uploaded_by_fk", "breakpoints": true}
   ]
 }

@@ -33,7 +33,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
 
     const doc = await new UploadDocument(repo, storage).execute({
       fileName: file.filename, mimeType: file.mimetype, buffer,
-      autoDetectType: autoDetect, documentType, uploadedBy: '00000000-0000-0000-0000-000000000000',
+      autoDetectType: autoDetect, documentType, uploadedBy: null,
       maxFileMb: env.OCR_MAX_FILE_MB,
     })
 
@@ -59,7 +59,7 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
 
         const doc = await new UploadDocument(repo, storage).execute({
           fileName: part.filename, mimeType: part.mimetype, buffer,
-          autoDetectType: autoDetect, documentType, uploadedBy: '00000000-0000-0000-0000-000000000000',
+          autoDetectType: autoDetect, documentType, uploadedBy: null,
           maxFileMb: env.OCR_MAX_FILE_MB,
         })
 

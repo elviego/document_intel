@@ -264,7 +264,7 @@ export const ocrDocuments = pgTable('ocr_documents', {
   documentType:   ocrDocumentTypeEnum('document_type'),
   autoDetectType: boolean('auto_detect_type').notNull().default(true),
   status:         ocrStatusEnum('status').notNull().default('pending'),
-  uploadedBy:     uuid('uploaded_by').references(() => users.id),
+  uploadedBy:     uuid('uploaded_by'),
   createdAt:      timestamp('created_at').defaultNow().notNull(),
   updatedAt:      timestamp('updated_at').defaultNow().notNull(),
 })
