@@ -45,14 +45,19 @@ const SCHEMAS: Record<OcrDocumentType, string> = {
   "jurisdiction": "string"
 }`,
   id_document: `{
-  "documentType": "string",
-  "fullName": "string",
-  "dateOfBirth": "YYYY-MM-DD",
-  "documentNumber": "string",
-  "issuingCountry": "string",
-  "issuingAuthority": "string",
-  "issueDate": "YYYY-MM-DD",
-  "expiryDate": "YYYY-MM-DD"
+  "document_type": "string",
+  "first_name": "string",
+  "last_name": "string",
+  "sex": "string",
+  "height": "string",
+  "nationality": "string",
+  "date_of_birth": "YYYY-MM-DD",
+  "civil_id": "string",
+  "expiry_date": "YYYY-MM-DD",
+  "parents": ["string"],
+  "tax_id": "string",
+  "social_security_number": "string",
+  "health_number": "string"
 }`,
   medical: `{
   "patient": "string",
@@ -81,6 +86,13 @@ const SCHEMAS: Record<OcrDocumentType, string> = {
 }`,
 }
 
+// Strip ```json ... ``` or ``` ... ``` fences that some models add despite instructions
+function extractJson(content: string): string {
+  const trimmed = content.trim()
+  const fenced  = trimmed.match(/^```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```$/s)
+  return fenced ? fenced[1].trim() : trimmed
+}
+
 export interface ExtractionResult {
   structuredData: Record<string, unknown>
   tokensUsed:     number
@@ -101,7 +113,7 @@ export class StructuredExtractor {
     const snippet = rawText.slice(0, 2000)
     const res = await this.llm.complete(DETECT_SYSTEM, `Document text:\n${snippet}`)
     try {
-      const parsed = JSON.parse(res.content.trim()) as { documentType: OcrDocumentType; confidence: number }
+      const parsed = JSON.parse(extractJson(res.content)) as { documentType: OcrDocumentType; confidence: number }
       return {
         documentType: parsed.documentType ?? 'other',
         confidence:   parsed.confidence   ?? 0,
@@ -123,8 +135,9 @@ export class StructuredExtractor {
 
     let structuredData: Record<string, unknown> = {}
     try {
-      structuredData = JSON.parse(res.content.trim()) as Record<string, unknown>
+      structuredData = JSON.parse(extractJson(res.content)) as Record<string, unknown>
     } catch {
+      // Last resort: return raw so the caller can see what the model returned
       structuredData = { raw: res.content }
     }
 
