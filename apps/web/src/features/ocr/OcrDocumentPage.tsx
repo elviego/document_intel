@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { errorMessage } from '@/lib/api-client'
 import {
-  useOcrDocument, useOcrDocumentJobs, useProcessDocument,
+  useOcrDocument, useOcrDocumentJobs, useProcessDocument, useCancelProcessing,
   documentFileUrl, documentExportUrl,
 } from './hooks/useOcr'
 import type { OcrDocumentType, OcrJob, OcrStatus } from './hooks/useOcr'
@@ -359,6 +359,7 @@ export default function OcrDocumentPage() {
   const { data, isLoading, isError } = useOcrDocument(id!)
   const { data: jobs = [] }          = useOcrDocumentJobs(id!)
   const process = useProcessDocument()
+  const cancel  = useCancelProcessing()
   const [showOverride,  setShowOverride]  = useState(false)
   const [showPreview,   setShowPreview]   = useState(true)
   const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
@@ -400,6 +401,18 @@ export default function OcrDocumentPage() {
                   Export CSV
                 </Button>
               </>
+            )}
+
+            {isProcessing && (
+              <Button
+                size="sm"
+                variant="secondary"
+                onClick={() => cancel.mutate(doc.id)}
+                disabled={cancel.isPending}
+                className="text-red-600 border-red-200 hover:bg-red-50"
+              >
+                {cancel.isPending ? 'Stopping…' : 'Stop'}
+              </Button>
             )}
 
             {job ? (

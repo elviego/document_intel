@@ -7,6 +7,7 @@ import { UploadDocument } from '../../../application/use-cases/ocr/UploadDocumen
 import { ProcessDocument } from '../../../application/use-cases/ocr/ProcessDocument.js'
 import { getFileStorage } from '../../storage/FileStorageFactory.js'
 import { ValidationError, NotFoundError } from '../../../shared/errors.js'
+import { register, cancel as cancelProcessing, unregister } from './processing-registry.js'
 import { env } from '../../../shared/env.js'
 import type { OcrDocumentType } from '../../../domain/entities/OcrDocument.js'
 
@@ -38,7 +39,9 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
     })
 
     if (autoProcess) {
-      new ProcessDocument(repo, storage).execute(doc.id).catch(() => {})
+      const ctrl = register(doc.id)
+      new ProcessDocument(repo, storage).execute(doc.id, undefined, ctrl.signal)
+        .catch(() => {}).finally(() => unregister(doc.id))
     }
 
     return reply.status(201).send(doc)
@@ -64,7 +67,9 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
         })
 
         if (autoProcess) {
-          new ProcessDocument(repo, storage).execute(doc.id).catch(() => {})
+          const ctrl = register(doc.id)
+          new ProcessDocument(repo, storage).execute(doc.id, undefined, ctrl.signal)
+            .catch(() => {}).finally(() => unregister(doc.id))
         }
 
         results.push({ fileName: part.filename, id: doc.id })
@@ -139,9 +144,26 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
     const doc = await repo.findDocumentById(id)
     if (!doc) throw new NotFoundError('Document')
 
-    // Fire-and-forget — frontend list polls for status updates
-    new ProcessDocument(repo, storage).execute(id, body ?? undefined).catch(() => {})
+    const ctrl = register(id)
+    new ProcessDocument(repo, storage).execute(id, body ?? undefined, ctrl.signal)
+      .catch(() => {}).finally(() => unregister(id))
     return reply.status(202).send({ documentId: id, status: 'processing' })
+  })
+
+  // ── Cancel active processing ──────────────────────────────────────────────
+  app.post('/:id/cancel', async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    const aborted = cancelProcessing(id)
+    if (aborted) {
+      const job = await repo.findLatestJobForDocument(id)
+      if (job && (job.status === 'processing' || job.status === 'pending')) {
+        await repo.updateJob(job.id, {
+          status: 'failed', errorMessage: 'Cancelled by user', completedAt: new Date(),
+        })
+      }
+      await repo.updateDocumentStatus(id, 'failed')
+    }
+    return reply.status(204).send()
   })
 
   // ── Export result ────────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { errorMessage } from '@/lib/api-client'
 import {
   useOcrDocuments, useUploadDocument, useBatchUpload,
-  useProcessDocument, useDeleteDocument,
+  useProcessDocument, useDeleteDocument, useCancelProcessing,
 } from './hooks/useOcr'
 import type { OcrDocument, OcrDocumentType, OcrStatus } from './hooks/useOcr'
 import { ConfidenceBadge } from './components/ConfidenceBadge'
@@ -186,6 +186,7 @@ export default function OcrPage() {
   const [page, setPage]         = useState(0)
   const { data, isLoading }     = useOcrDocuments(page)
   const process                 = useProcessDocument()
+  const cancel                  = useCancelProcessing()
   const remove                  = useDeleteDocument()
 
   const docs  = data?.items  ?? []
@@ -253,7 +254,15 @@ export default function OcrPage() {
                     <td className="px-4 py-2.5 font-mono text-xs text-gray-400 tabular-nums">{format(new Date(doc.createdAt), 'yyyy-MM-dd HH:mm')}</td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity">
-                        {doc.status !== 'processing' && (
+                        {doc.status === 'processing' || doc.status === 'pending' ? (
+                          <button
+                            className="text-xs text-red-500 hover:text-red-700 font-mono uppercase tracking-wide"
+                            onClick={() => cancel.mutate(doc.id)}
+                            disabled={cancel.isPending}
+                          >
+                            Stop
+                          </button>
+                        ) : (
                           <button
                             className="text-xs text-gray-500 hover:text-brand-600 font-mono uppercase tracking-wide"
                             onClick={() => process.mutate({ id: doc.id })}

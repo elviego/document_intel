@@ -18,7 +18,7 @@ export class ProcessDocument {
     private readonly storage: IFileStorage,
   ) {}
 
-  async execute(documentId: string, override?: ProcessOverride): Promise<OcrResultMetadata> {
+  async execute(documentId: string, override?: ProcessOverride, signal?: AbortSignal): Promise<OcrResultMetadata> {
     const doc = await this.repo.findDocumentById(documentId)
     if (!doc) throw new NotFoundError('Document')
 
@@ -60,6 +60,8 @@ export class ProcessDocument {
         console.log(`[OCR:process] step1: rawText sample="${ocrResult.rawText.slice(0, 120).replace(/\n/g, '↵')}"`)
       }
 
+      if (signal?.aborted) throw new Error('Cancelled by user')
+
       // ── Step 2: Resolve document type ────────────────────────────────────────
       let documentType: OcrDocumentType = effectiveType ?? doc.documentType ?? 'other'
       let autoDetected                         = false
@@ -97,6 +99,8 @@ export class ProcessDocument {
           detectionConfidence = detected.confidence
           llmModel            = detected.model
         }
+
+        if (signal?.aborted) throw new Error('Cancelled by user')
 
         // ── Step 2b: Structured extraction ────────────────────────────────────
         const llmExtractStart = Date.now()

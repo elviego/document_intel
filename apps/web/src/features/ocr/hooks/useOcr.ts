@@ -159,6 +159,18 @@ export function useBatchUpload() {
   })
 }
 
+export function useCancelProcessing() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/v1/ocr/documents/${id}/cancel`, {}),
+    onSuccess: (_data, id) => {
+      qc.invalidateQueries({ queryKey: ['ocr-documents'] })
+      qc.invalidateQueries({ queryKey: ['ocr-document', id] })
+      qc.invalidateQueries({ queryKey: ['ocr-document-jobs', id] })
+    },
+  })
+}
+
 export function useProcessDocument() {
   const qc = useQueryClient()
   return useMutation({
