@@ -220,14 +220,10 @@ function dateLabel(iso: string): string {
   return format(d, 'dd MMM yyyy')
 }
 
-function ProcessingHistory({
-  jobs, selectedId, onSelect,
-}: {
-  jobs: OcrJob[]
-  selectedId: string | null
-  onSelect: (id: string) => void
-}) {
-  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+function ProcessingHistory({ jobs }: { jobs: OcrJob[] }) {
+  // Start with the latest job expanded
+  const [expandedId,  setExpandedId]  = useState<string | null>(() => jobs[0]?.id ?? null)
+  const [collapsed,   setCollapsed]   = useState<Record<string, boolean>>({})
 
   if (jobs.length === 0) return null
 
@@ -240,8 +236,11 @@ function ProcessingHistory({
     else groups.push({ label, jobs: [job] })
   }
 
-  const toggle = (label: string) =>
+  const toggleDate = (label: string) =>
     setCollapsed(c => ({ ...c, [label]: !c[label] }))
+
+  const toggleJob = (id: string) =>
+    setExpandedId(prev => prev === id ? null : id)
 
   return (
     <section>
@@ -254,74 +253,91 @@ function ProcessingHistory({
 
       <div className="border border-gray-100 rounded-lg overflow-hidden divide-y divide-gray-100">
         {groups.map(({ label, jobs: groupJobs }, gi) => {
-          const isOpen = !collapsed[label]
+          const isDateOpen = !collapsed[label]
           return (
             <div key={label}>
-              {/* Date header — always show first group open */}
+              {/* Date header */}
               <button
-                onClick={() => toggle(label)}
+                onClick={() => toggleDate(label)}
                 className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
               >
                 <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{label}</span>
                 <div className="flex items-center gap-3">
                   <span className="text-[11px] text-gray-400">{groupJobs.length} run{groupJobs.length !== 1 ? 's' : ''}</span>
-                  <span className="text-gray-300 text-xs">{isOpen ? '▲' : '▼'}</span>
+                  <span className="text-gray-300 text-[10px]">{isDateOpen ? '▲' : '▼'}</span>
                 </div>
               </button>
 
-              {isOpen && (
+              {isDateOpen && (
                 <div className="divide-y divide-gray-50">
                   {groupJobs.map((job, ji) => {
-                    const isSelected = selectedId === job.id
+                    const isExpanded = expandedId === job.id
                     const isLatest   = gi === 0 && ji === 0
                     const conf       = job.metadata?.ocr.overallConfidence
                     return (
-                      <button
-                        key={job.id}
-                        onClick={() => onSelect(job.id)}
-                        className={`w-full flex items-center gap-3 px-3 py-2 text-left text-xs transition-colors ${
-                          isSelected ? 'bg-brand-50 border-l-2 border-brand-500' : 'hover:bg-gray-50 border-l-2 border-transparent'
-                        }`}
-                      >
-                        {/* Time */}
-                        <span className="font-mono text-gray-400 tabular-nums w-10 shrink-0">
-                          {format(new Date(job.createdAt), 'HH:mm')}
-                        </span>
+                      <div key={job.id} className={`border-l-2 transition-colors ${isExpanded ? 'border-brand-400' : 'border-transparent'}`}>
+                        {/* Row header — click to expand/collapse */}
+                        <button
+                          onClick={() => toggleJob(job.id)}
+                          className={`w-full flex items-center gap-3 px-3 py-2 text-left text-xs transition-colors ${
+                            isExpanded ? 'bg-brand-50' : 'hover:bg-gray-50'
+                          }`}
+                        >
+                          {/* Chevron */}
+                          <span className={`text-gray-300 text-[10px] shrink-0 transition-transform ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
 
-                        {/* Status dot */}
-                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[job.status]}`} />
+                          {/* Time */}
+                          <span className="font-mono text-gray-400 tabular-nums w-10 shrink-0">
+                            {format(new Date(job.createdAt), 'HH:mm')}
+                          </span>
 
-                        {/* Engine */}
-                        <span className="text-gray-500 font-mono truncate flex-1">
-                          {job.ocrEngine}
-                          {job.metadata?.llm && (
-                            <span className="text-gray-300"> · {job.metadata.llm.model}</span>
+                          {/* Status dot */}
+                          <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[job.status]}`} />
+
+                          {/* Engine */}
+                          <span className="text-gray-500 font-mono truncate flex-1">
+                            {job.ocrEngine}
+                            {job.metadata?.llm && (
+                              <span className="text-gray-300"> · {job.metadata.llm.model}</span>
+                            )}
+                          </span>
+
+                          {/* Confidence */}
+                          {conf != null ? (
+                            <span className={`tabular-nums font-mono w-10 text-right shrink-0 ${
+                              conf >= 0.8 ? 'text-emerald-500' : conf >= 0.5 ? 'text-amber-500' : 'text-red-400'
+                            }`}>
+                              {(conf * 100).toFixed(0)}%
+                            </span>
+                          ) : (
+                            <span className="w-10 text-right text-gray-300 shrink-0">—</span>
                           )}
-                        </span>
 
-                        {/* Confidence */}
-                        {conf != null ? (
-                          <span className={`tabular-nums font-mono w-10 text-right ${
-                            conf >= 0.8 ? 'text-emerald-500' : conf >= 0.5 ? 'text-amber-500' : 'text-red-400'
-                          }`}>
-                            {(conf * 100).toFixed(0)}%
+                          {/* Duration */}
+                          <span className="text-gray-300 font-mono tabular-nums w-12 text-right shrink-0">
+                            {fmtDuration(job)}
                           </span>
-                        ) : (
-                          <span className="w-10 text-right text-gray-300">—</span>
-                        )}
 
-                        {/* Duration */}
-                        <span className="text-gray-300 font-mono tabular-nums w-12 text-right shrink-0">
-                          {fmtDuration(job)}
-                        </span>
+                          {/* Latest badge */}
+                          {isLatest && (
+                            <span className="text-[9px] font-semibold uppercase tracking-wider text-brand-500 bg-brand-50 border border-brand-100 px-1.5 py-0.5 rounded shrink-0">
+                              latest
+                            </span>
+                          )}
+                        </button>
 
-                        {/* Latest badge */}
-                        {isLatest && (
-                          <span className="text-[9px] font-semibold uppercase tracking-wider text-brand-500 bg-brand-50 px-1.5 py-0.5 rounded shrink-0">
-                            latest
-                          </span>
+                        {/* Expanded content */}
+                        {isExpanded && (
+                          <div className="px-4 pb-4 pt-1 bg-white border-t border-gray-50">
+                            {job.status === 'completed' && job.metadata
+                              ? <OcrResultViewer job={job} />
+                              : job.status === 'failed'
+                                ? <p className="text-xs text-red-500 py-2">{job.errorMessage ?? 'Processing failed'}</p>
+                                : <p className="text-xs text-gray-400 py-2">No results available</p>
+                            }
+                          </div>
                         )}
-                      </button>
+                      </div>
                     )
                   })}
                 </div>
@@ -362,16 +378,13 @@ export default function OcrDocumentPage() {
   const cancel  = useCancelProcessing()
   const [showOverride,  setShowOverride]  = useState(false)
   const [showPreview,   setShowPreview]   = useState(true)
-  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
 
   if (isLoading) return <p className="p-8 text-sm text-gray-400">{t('common.loading')}</p>
   if (isError || !data) return <p className="p-8 text-sm text-red-500">Document not found.</p>
 
-  const { document: doc, job: latestJob } = data
-  const displayJob   = selectedJobId ? (jobs.find(j => j.id === selectedJobId) ?? latestJob) : latestJob
-  const job          = displayJob
+  const { document: doc, job } = data
   const isProcessing = doc.status === 'processing' || doc.status === 'pending'
-  const canExport    = doc.status === 'completed' && !!latestJob?.metadata
+  const canExport    = doc.status === 'completed' && !!job?.metadata
 
   return (
     <div className="h-full flex flex-col">
@@ -505,35 +518,8 @@ export default function OcrDocumentPage() {
             </div>
           )}
 
-          {/* Results */}
-          {job && (job.status === 'completed' || job.status === 'failed') && (
-            <section>
-              <div className="flex items-center justify-between mb-3">
-                <h2 className="text-sm font-semibold text-gray-700">{t('ocr.results')}</h2>
-                {selectedJobId && selectedJobId !== latestJob?.id && (
-                  <button
-                    onClick={() => setSelectedJobId(null)}
-                    className="text-xs text-brand-600 hover:underline"
-                  >
-                    ← Back to latest
-                  </button>
-                )}
-              </div>
-              {job.status === 'completed'
-                ? <OcrResultViewer job={job} />
-                : <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
-                    <strong>Failed:</strong> {job.errorMessage ?? 'Unknown error'}
-                  </div>
-              }
-            </section>
-          )}
-
           {/* Processing history */}
-          <ProcessingHistory
-            jobs={jobs}
-            selectedId={selectedJobId ?? latestJob?.id ?? null}
-            onSelect={id => setSelectedJobId(id === latestJob?.id ? null : id)}
-          />
+          <ProcessingHistory jobs={jobs} />
 
           {/* Not yet processed */}
           {!job && doc.status === 'pending' && !isProcessing && (
