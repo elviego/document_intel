@@ -2,6 +2,92 @@ import { useState } from 'react'
 import type { OcrJob } from '../hooks/useOcr'
 import { ConfidenceBadge } from './ConfidenceBadge'
 
+// ── JSON syntax highlighter ───────────────────────────────────────────────────
+
+function JsonNode({ value, indent }: { value: unknown; indent: number }) {
+  const pad = '  '.repeat(indent)
+  const inner = '  '.repeat(indent + 1)
+
+  if (value === null)
+    return <span className="text-purple-400">null</span>
+
+  if (typeof value === 'boolean')
+    return <span className="text-purple-400">{String(value)}</span>
+
+  if (typeof value === 'number')
+    return <span className="text-amber-400">{value}</span>
+
+  if (typeof value === 'string')
+    return (
+      <span className="text-emerald-400">
+        &quot;<span className="text-emerald-300">{value}</span>&quot;
+      </span>
+    )
+
+  if (Array.isArray(value)) {
+    if (value.length === 0) return <span className="text-gray-500">{'[]'}</span>
+    return (
+      <>
+        <span className="text-gray-400">{'['}</span>{'\n'}
+        {value.map((item, i) => (
+          <span key={i}>
+            {inner}<JsonNode value={item} indent={indent + 1} />
+            {i < value.length - 1 ? <span className="text-gray-600">,</span> : null}{'\n'}
+          </span>
+        ))}
+        {pad}<span className="text-gray-400">{']'}</span>
+      </>
+    )
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    const entries = Object.entries(value)
+    if (entries.length === 0) return <span className="text-gray-500">{'{}'}</span>
+    return (
+      <>
+        <span className="text-gray-400">{'{'}</span>{'\n'}
+        {entries.map(([k, v], i) => (
+          <span key={k}>
+            {inner}
+            <span className="text-sky-400">&quot;{k}&quot;</span>
+            <span className="text-gray-500">: </span>
+            <JsonNode value={v} indent={indent + 1} />
+            {i < entries.length - 1 ? <span className="text-gray-600">,</span> : null}{'\n'}
+          </span>
+        ))}
+        {pad}<span className="text-gray-400">{'}'}</span>
+      </>
+    )
+  }
+
+  return <span className="text-gray-300">{String(value)}</span>
+}
+
+function JsonViewer({ data, onCopy }: { data: unknown; onCopy: () => void }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = () => {
+    navigator.clipboard.writeText(JSON.stringify(data, null, 2))
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+    onCopy()
+  }
+  return (
+    <div className="relative group">
+      <button
+        onClick={handleCopy}
+        className="absolute top-3 right-3 text-[10px] font-mono text-gray-500 hover:text-gray-200 bg-gray-800 hover:bg-gray-700 px-2 py-0.5 rounded opacity-0 group-hover:opacity-100 transition-opacity z-10"
+      >
+        {copied ? 'copied!' : 'copy'}
+      </button>
+      <pre className="bg-gray-950 rounded-lg px-5 py-4 text-xs overflow-auto max-h-[36rem] font-mono leading-relaxed">
+        <JsonNode value={data} indent={0} />
+      </pre>
+    </div>
+  )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 interface Props { job: OcrJob }
 
 export function OcrResultViewer({ job }: Props) {
@@ -53,9 +139,7 @@ export function OcrResultViewer({ job }: Props) {
       {tab === 'structured' && (
         <div>
           {meta.structuredData ? (
-            <pre className="bg-gray-900 text-green-300 rounded-lg p-4 text-xs overflow-auto max-h-96 font-mono">
-              {JSON.stringify(meta.structuredData, null, 2)}
-            </pre>
+            <JsonViewer data={meta.structuredData} onCopy={() => {}} />
           ) : (
             <p className="text-sm text-gray-500">No LLM extraction was run. Configure a provider on the settings page.</p>
           )}
@@ -82,9 +166,7 @@ export function OcrResultViewer({ job }: Props) {
       )}
 
       {tab === 'meta' && (
-        <pre className="bg-gray-900 text-blue-300 rounded-lg p-4 text-xs overflow-auto max-h-96 font-mono">
-          {JSON.stringify(meta, null, 2)}
-        </pre>
+        <JsonViewer data={meta} onCopy={() => {}} />
       )}
 
       {meta.validation.status !== 'valid' && (
