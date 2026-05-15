@@ -221,12 +221,15 @@ async function fetchProviderModels(
     }
 
     case 'ollama': {
-      // Ollama base URL may include /v1 suffix from OpenAI-compat path — strip it
-      const base = (baseUrl ?? 'http://localhost:11434').replace(/\/v1\/?$/, '')
-      const res  = await fetch(`${base}/api/tags`)
+      // Use OpenAI-compatible /models — works for Ollama, LM Studio, vLLM, and similar
+      const base = baseUrl ?? 'http://localhost:11434/v1'
+      const res  = await fetch(`${base}/models`, {
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      })
       if (!res.ok) throw new Error(`Ollama error ${res.status}: ${await res.text()}`)
       const data = await res.json() as any
-      return ((data.models ?? []) as any[]).map(m => m.name as string).sort()
+      const list: any[] = data.data ?? data.models ?? []
+      return list.map(m => (m.id ?? m.name) as string).filter(Boolean).sort()
     }
 
     case 'deepseek': {

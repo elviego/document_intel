@@ -88,7 +88,7 @@ function ProviderModal({
       case 'anthropic': return 'https://api.anthropic.com/v1/models'
       case 'openai':    return `${base || 'https://api.openai.com/v1'}/models`
       case 'deepseek':  return `${base || 'https://api.deepseek.com/v1'}/models`
-      case 'ollama':    return `${(base || 'http://localhost:11434').replace(/\/v1\/?$/, '')}/api/tags`
+      case 'ollama':    return `${base || 'http://localhost:11434/v1'}/models`
       case 'custom':    return base ? `${base}/models` : null
       default:          return null
     }
