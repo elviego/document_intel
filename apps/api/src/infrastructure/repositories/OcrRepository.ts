@@ -180,6 +180,14 @@ export class OcrRepository implements IOcrRepository {
     return row ? mapJob(row) : null
   }
 
+  async listJobsForDocument(documentId: string, limit = 50): Promise<OcrJob[]> {
+    const rows = await this.db.select().from(schema.ocrJobs)
+      .where(eq(schema.ocrJobs.documentId, documentId))
+      .orderBy(desc(schema.ocrJobs.createdAt))
+      .limit(limit)
+    return rows.map(mapJob)
+  }
+
   async updateJob(id: string, input: UpdateJobInput): Promise<void> {
     await this.db.update(schema.ocrJobs)
       .set({

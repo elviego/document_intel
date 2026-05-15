@@ -96,6 +96,15 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
     return reply.send({ document: doc, job })
   })
 
+  // ── List all jobs for a document ─────────────────────────────────────────
+  app.get('/:id/jobs', async (req, reply) => {
+    const { id } = z.object({ id: z.string().uuid() }).parse(req.params)
+    const doc = await repo.findDocumentById(id)
+    if (!doc) throw new NotFoundError('Document')
+    const jobs = await repo.listJobsForDocument(id)
+    return reply.send(jobs)
+  })
+
   // ── Serve raw file (for preview) ─────────────────────────────────────────
   app.get('/:id/file', async (req, reply) => {
     const { id } = z.object({ id: z.string().uuid() }).parse(req.params)

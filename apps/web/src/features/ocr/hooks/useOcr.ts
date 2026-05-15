@@ -97,6 +97,18 @@ export function useOcrDocument(id: string) {
   })
 }
 
+export function useOcrDocumentJobs(docId: string) {
+  return useQuery({
+    queryKey: ['ocr-document-jobs', docId],
+    queryFn:  () => apiClient.get<OcrJob[]>(`/v1/ocr/documents/${docId}/jobs`),
+    enabled:  !!docId,
+    refetchInterval: (query) => {
+      const jobs = query.state.data ?? []
+      return jobs.some(j => j.status === 'pending' || j.status === 'processing') ? 3000 : false
+    },
+  })
+}
+
 export function useOcrMetricsAggregate() {
   return useQuery({
     queryKey: ['ocr-metrics-aggregate'],

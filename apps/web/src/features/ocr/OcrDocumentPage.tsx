@@ -8,10 +8,10 @@ import { Badge } from '@/components/ui/Badge'
 import { Modal } from '@/components/ui/Modal'
 import { errorMessage } from '@/lib/api-client'
 import {
-  useOcrDocument, useProcessDocument,
+  useOcrDocument, useOcrDocumentJobs, useProcessDocument,
   documentFileUrl, documentExportUrl,
 } from './hooks/useOcr'
-import type { OcrDocumentType, OcrStatus } from './hooks/useOcr'
+import type { OcrDocumentType, OcrJob, OcrStatus } from './hooks/useOcr'
 import { useLlmProviders } from './hooks/useOcrConfig'
 import { OcrResultViewer } from './components/OcrResultViewer'
 import { ConfidenceBadge } from './components/ConfidenceBadge'
@@ -196,6 +196,144 @@ function OverrideModal({
   )
 }
 
+// ── Processing history ────────────────────────────────────────────────────────
+
+const STATUS_DOT: Record<OcrStatus, string> = {
+  completed: 'bg-emerald-500',
+  failed:    'bg-red-400',
+  processing:'bg-blue-400 animate-pulse',
+  pending:   'bg-gray-300',
+}
+
+function fmtDuration(job: OcrJob): string {
+  if (!job.startedAt || !job.completedAt) return '—'
+  const ms = new Date(job.completedAt).getTime() - new Date(job.startedAt).getTime()
+  return ms < 1000 ? `${ms}ms` : `${(ms / 1000).toFixed(1)}s`
+}
+
+function dateLabel(iso: string): string {
+  const d    = new Date(iso)
+  const now  = new Date()
+  const diff = Math.floor((now.setHours(0,0,0,0) - new Date(d).setHours(0,0,0,0)) / 86400000)
+  if (diff === 0) return 'Today'
+  if (diff === 1) return 'Yesterday'
+  return format(d, 'dd MMM yyyy')
+}
+
+function ProcessingHistory({
+  jobs, selectedId, onSelect,
+}: {
+  jobs: OcrJob[]
+  selectedId: string | null
+  onSelect: (id: string) => void
+}) {
+  const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+
+  if (jobs.length === 0) return null
+
+  // Group by calendar date
+  const groups: { label: string; jobs: OcrJob[] }[] = []
+  for (const job of jobs) {
+    const label = dateLabel(job.createdAt)
+    const last  = groups[groups.length - 1]
+    if (last?.label === label) last.jobs.push(job)
+    else groups.push({ label, jobs: [job] })
+  }
+
+  const toggle = (label: string) =>
+    setCollapsed(c => ({ ...c, [label]: !c[label] }))
+
+  return (
+    <section>
+      <div className="flex items-center justify-between mb-2">
+        <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+          Processing History
+        </h2>
+        <span className="text-[11px] text-gray-300 font-mono">{jobs.length} run{jobs.length !== 1 ? 's' : ''}</span>
+      </div>
+
+      <div className="border border-gray-100 rounded-lg overflow-hidden divide-y divide-gray-100">
+        {groups.map(({ label, jobs: groupJobs }, gi) => {
+          const isOpen = !collapsed[label]
+          return (
+            <div key={label}>
+              {/* Date header — always show first group open */}
+              <button
+                onClick={() => toggle(label)}
+                className="w-full flex items-center justify-between px-3 py-2 bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+              >
+                <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">{label}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-[11px] text-gray-400">{groupJobs.length} run{groupJobs.length !== 1 ? 's' : ''}</span>
+                  <span className="text-gray-300 text-xs">{isOpen ? '▲' : '▼'}</span>
+                </div>
+              </button>
+
+              {isOpen && (
+                <div className="divide-y divide-gray-50">
+                  {groupJobs.map((job, ji) => {
+                    const isSelected = selectedId === job.id
+                    const isLatest   = gi === 0 && ji === 0
+                    const conf       = job.metadata?.ocr.overallConfidence
+                    return (
+                      <button
+                        key={job.id}
+                        onClick={() => onSelect(job.id)}
+                        className={`w-full flex items-center gap-3 px-3 py-2 text-left text-xs transition-colors ${
+                          isSelected ? 'bg-brand-50 border-l-2 border-brand-500' : 'hover:bg-gray-50 border-l-2 border-transparent'
+                        }`}
+                      >
+                        {/* Time */}
+                        <span className="font-mono text-gray-400 tabular-nums w-10 shrink-0">
+                          {format(new Date(job.createdAt), 'HH:mm')}
+                        </span>
+
+                        {/* Status dot */}
+                        <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${STATUS_DOT[job.status]}`} />
+
+                        {/* Engine */}
+                        <span className="text-gray-500 font-mono truncate flex-1">
+                          {job.ocrEngine}
+                          {job.metadata?.llm && (
+                            <span className="text-gray-300"> · {job.metadata.llm.model}</span>
+                          )}
+                        </span>
+
+                        {/* Confidence */}
+                        {conf != null ? (
+                          <span className={`tabular-nums font-mono w-10 text-right ${
+                            conf >= 0.8 ? 'text-emerald-500' : conf >= 0.5 ? 'text-amber-500' : 'text-red-400'
+                          }`}>
+                            {(conf * 100).toFixed(0)}%
+                          </span>
+                        ) : (
+                          <span className="w-10 text-right text-gray-300">—</span>
+                        )}
+
+                        {/* Duration */}
+                        <span className="text-gray-300 font-mono tabular-nums w-12 text-right shrink-0">
+                          {fmtDuration(job)}
+                        </span>
+
+                        {/* Latest badge */}
+                        {isLatest && (
+                          <span className="text-[9px] font-semibold uppercase tracking-wider text-brand-500 bg-brand-50 px-1.5 py-0.5 rounded shrink-0">
+                            latest
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </section>
+  )
+}
+
 // ── Authenticated download helper ─────────────────────────────────────────────
 
 async function downloadExport(docId: string, fmt: 'json' | 'csv', fileName: string) {
@@ -219,16 +357,20 @@ export default function OcrDocumentPage() {
   const { id } = useParams<{ id: string }>()
   const { t }  = useTranslation()
   const { data, isLoading, isError } = useOcrDocument(id!)
+  const { data: jobs = [] }          = useOcrDocumentJobs(id!)
   const process = useProcessDocument()
   const [showOverride,  setShowOverride]  = useState(false)
   const [showPreview,   setShowPreview]   = useState(true)
+  const [selectedJobId, setSelectedJobId] = useState<string | null>(null)
 
   if (isLoading) return <p className="p-8 text-sm text-gray-400">{t('common.loading')}</p>
   if (isError || !data) return <p className="p-8 text-sm text-red-500">Document not found.</p>
 
-  const { document: doc, job } = data
+  const { document: doc, job: latestJob } = data
+  const displayJob   = selectedJobId ? (jobs.find(j => j.id === selectedJobId) ?? latestJob) : latestJob
+  const job          = displayJob
   const isProcessing = doc.status === 'processing' || doc.status === 'pending'
-  const canExport    = doc.status === 'completed' && !!job?.metadata
+  const canExport    = doc.status === 'completed' && !!latestJob?.metadata
 
   return (
     <div className="h-full flex flex-col">
@@ -351,12 +493,34 @@ export default function OcrDocumentPage() {
           )}
 
           {/* Results */}
-          {job && doc.status === 'completed' && (
+          {job && (job.status === 'completed' || job.status === 'failed') && (
             <section>
-              <h2 className="text-sm font-semibold text-gray-700 mb-3">{t('ocr.results')}</h2>
-              <OcrResultViewer job={job} />
+              <div className="flex items-center justify-between mb-3">
+                <h2 className="text-sm font-semibold text-gray-700">{t('ocr.results')}</h2>
+                {selectedJobId && selectedJobId !== latestJob?.id && (
+                  <button
+                    onClick={() => setSelectedJobId(null)}
+                    className="text-xs text-brand-600 hover:underline"
+                  >
+                    ← Back to latest
+                  </button>
+                )}
+              </div>
+              {job.status === 'completed'
+                ? <OcrResultViewer job={job} />
+                : <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+                    <strong>Failed:</strong> {job.errorMessage ?? 'Unknown error'}
+                  </div>
+              }
             </section>
           )}
+
+          {/* Processing history */}
+          <ProcessingHistory
+            jobs={jobs}
+            selectedId={selectedJobId ?? latestJob?.id ?? null}
+            onSelect={id => setSelectedJobId(id === latestJob?.id ? null : id)}
+          />
 
           {/* Not yet processed */}
           {!job && doc.status === 'pending' && !isProcessing && (
