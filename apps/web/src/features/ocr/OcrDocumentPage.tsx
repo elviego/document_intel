@@ -221,9 +221,13 @@ function dateLabel(iso: string): string {
 }
 
 function ProcessingHistory({ jobs }: { jobs: OcrJob[] }) {
-  // Start with the latest job expanded
-  const [expandedId,  setExpandedId]  = useState<string | null>(() => jobs[0]?.id ?? null)
-  const [collapsed,   setCollapsed]   = useState<Record<string, boolean>>({})
+  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [collapsed,  setCollapsed]  = useState<Record<string, boolean>>({})
+
+  // Auto-open the latest run once jobs load (they arrive async)
+  useEffect(() => {
+    if (jobs.length > 0) setExpandedId(id => id ?? jobs[0].id)
+  }, [jobs[0]?.id])
 
   if (jobs.length === 0) return null
 
