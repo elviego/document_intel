@@ -77,6 +77,11 @@ export function useOcrDocuments(page = 0) {
     queryFn:  () => apiClient.get<{ items: OcrDocument[]; total: number }>(
       `/v1/ocr/documents?limit=50&offset=${page * 50}`
     ),
+    refetchInterval: (query) => {
+      const hasActive = (query.state.data?.items ?? [])
+        .some(d => d.status === 'pending' || d.status === 'processing')
+      return hasActive ? 3000 : false
+    },
   })
 }
 
@@ -146,12 +151,11 @@ export function useProcessDocument() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, override }: { id: string; override?: { documentType?: OcrDocumentType; llmProviderId?: string; llmModel?: string } }) =>
-      apiClient.post<OcrResultMetadata>(`/v1/ocr/documents/${id}/process`, override ?? {}),
+      apiClient.post<{ documentId: string; status: string }>(`/v1/ocr/documents/${id}/process`, override ?? {}),
     onSuccess: (_data, { id }) => {
+      // Invalidate immediately so the list sees 'processing' and starts polling
       qc.invalidateQueries({ queryKey: ['ocr-documents'] })
       qc.invalidateQueries({ queryKey: ['ocr-document', id] })
-      qc.invalidateQueries({ queryKey: ['ocr-metrics-aggregate'] })
-      qc.invalidateQueries({ queryKey: ['ocr-metrics-trending'] })
     },
   })
 }

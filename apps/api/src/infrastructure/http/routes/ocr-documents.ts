@@ -127,8 +127,12 @@ export const ocrDocumentRoutes: FastifyPluginAsync = async (app) => {
       llmModel:      z.string().optional(),
     }).optional().parse(req.body)
 
-    const metadata = await new ProcessDocument(repo, storage).execute(id, body ?? undefined)
-    return reply.send(metadata)
+    const doc = await repo.findDocumentById(id)
+    if (!doc) throw new NotFoundError('Document')
+
+    // Fire-and-forget — frontend list polls for status updates
+    new ProcessDocument(repo, storage).execute(id, body ?? undefined).catch(() => {})
+    return reply.status(202).send({ documentId: id, status: 'processing' })
   })
 
   // ── Export result ────────────────────────────────────────────────────────
