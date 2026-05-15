@@ -30,8 +30,11 @@ export class ProcessDocument {
     const ocrEngine = pickEngine(doc.mimeType, config?.ocrEngine ?? 'tesseract')
     const language  = config?.ocrLanguage ?? 'por+eng'
 
+    console.log(`[OCR:process] documentId=${documentId} mimeType=${doc.mimeType} engine=${ocrEngine.name} language=${language} effectiveType=${effectiveType ?? 'none'} autoDetect=${doc.autoDetectType}`)
+
     // For S3/remote storage, we need a local file path — download to tmp
     const filePath = await this.resolveFilePath(doc.filePath, doc.mimeType)
+    console.log(`[OCR:process] resolvedFilePath=${filePath} storageProvider=${this.storage.provider}`)
 
     const job = await this.repo.createJob({
       documentId,
@@ -47,8 +50,15 @@ export class ProcessDocument {
     try {
       // ── Step 1: OCR ──────────────────────────────────────────────────────────
       const ocrStart  = Date.now()
+      console.log(`[OCR:process] step1: starting OCR with engine=${ocrEngine.name}`)
       const ocrResult = await ocrEngine.recognize(filePath, language)
       const ocrMs     = Date.now() - ocrStart
+      console.log(`[OCR:process] step1: OCR done in ${ocrMs}ms engineVersion=${ocrResult.engineVersion} overallConfidence=${ocrResult.overallConfidence.toFixed(3)} rawTextLength=${ocrResult.rawText.length} pages=${ocrResult.pages.length}`)
+      if (!ocrResult.rawText || ocrResult.rawText.trim().length === 0) {
+        console.warn('[OCR:process] step1: WARNING — rawText is empty after OCR')
+      } else {
+        console.log(`[OCR:process] step1: rawText sample="${ocrResult.rawText.slice(0, 120).replace(/\n/g, '↵')}"`)
+      }
 
       // ── Step 2: Resolve document type ────────────────────────────────────────
       let documentType: OcrDocumentType = effectiveType ?? doc.documentType ?? 'other'
@@ -65,6 +75,10 @@ export class ProcessDocument {
       const providerRecord = resolvedProviderId
         ? await this.repo.findProviderById(resolvedProviderId)
         : await this.repo.findDefaultProvider()
+
+      console.log(`[OCR:process] step2: resolvedProviderId=${resolvedProviderId ?? 'none'} providerFound=${!!providerRecord} providerActive=${providerRecord?.isActive ?? false}`)
+      if (!providerRecord) console.warn('[OCR:process] step2: no LLM provider found — skipping structured extraction')
+      else if (!providerRecord.isActive) console.warn(`[OCR:process] step2: provider ${providerRecord.id} is inactive — skipping structured extraction`)
 
       if (providerRecord?.isActive) {
         const llmInstance = buildLlmProvider(providerRecord)
