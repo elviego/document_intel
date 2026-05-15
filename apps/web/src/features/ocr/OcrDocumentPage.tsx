@@ -65,7 +65,7 @@ function PreviewPanel({ docId, mimeType, fileName }: { docId: string; mimeType: 
 
   if (err) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-gray-400">
+      <div className="absolute inset-0 flex items-center justify-center text-sm text-gray-400">
         Preview unavailable
       </div>
     )
@@ -73,7 +73,7 @@ function PreviewPanel({ docId, mimeType, fileName }: { docId: string; mimeType: 
 
   if (!url) {
     return (
-      <div className="flex items-center justify-center h-full text-sm text-gray-400">
+      <div className="absolute inset-0 flex items-center justify-center">
         <div className="animate-spin w-5 h-5 border-2 border-gray-300 border-t-brand-600 rounded-full" />
       </div>
     )
@@ -84,7 +84,7 @@ function PreviewPanel({ docId, mimeType, fileName }: { docId: string; mimeType: 
       <img
         src={url}
         alt={fileName}
-        className="max-w-full max-h-full object-contain"
+        className="absolute inset-0 w-full h-full object-contain p-3"
       />
     )
   }
@@ -94,13 +94,13 @@ function PreviewPanel({ docId, mimeType, fileName }: { docId: string; mimeType: 
       <iframe
         src={url}
         title={fileName}
-        className="w-full h-full border-0"
+        className="absolute inset-0 w-full h-full border-0"
       />
     )
   }
 
   return (
-    <div className="flex flex-col items-center justify-center h-full gap-3 text-sm text-gray-500">
+    <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-sm text-gray-500">
       <span className="text-4xl">📄</span>
       <a href={url} download={fileName} className="text-brand-600 hover:underline">
         Download to view
@@ -280,11 +280,11 @@ export default function OcrDocumentPage() {
       <div className="flex-1 overflow-hidden flex">
         {/* Preview panel */}
         {showPreview && (
-          <div className="w-96 shrink-0 border-r border-gray-200 flex flex-col bg-gray-50">
+          <div className="w-[27.6rem] shrink-0 border-r border-gray-200 flex flex-col bg-gray-50">
             <div className="px-4 py-2 border-b border-gray-200 text-xs font-semibold text-gray-500 uppercase tracking-wide">
               Preview
             </div>
-            <div className="flex-1 overflow-hidden flex items-center justify-center p-4">
+            <div className="flex-1 relative overflow-hidden">
               <PreviewPanel docId={doc.id} mimeType={doc.mimeType} fileName={doc.fileName} />
             </div>
           </div>
