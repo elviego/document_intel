@@ -13,6 +13,23 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
 
   // ── LLM Providers ───────────────────────────────────────────────────────────
 
+  // POST /v1/ocr/providers/fetch-models — proxy to provider's model list API
+  app.post('/providers/fetch-models', async (req, reply) => {
+    const { providerType, apiKey, baseUrl } = z.object({
+      providerType: providerTypeEnum,
+      apiKey:       z.string().optional(),
+      baseUrl:      z.string().optional(),
+    }).parse(req.body)
+
+    try {
+      const models = await fetchProviderModels(providerType, apiKey, baseUrl)
+      return reply.send({ models })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return reply.status(400).send({ error: msg })
+    }
+  })
+
   // GET /v1/ocr/providers
   app.get('/providers', async (_req, reply) => {
     const providers = await repo.listProviders()
@@ -146,4 +163,68 @@ export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
     await repo.deleteWebhook(id)
     return reply.status(204).send()
   })
+}
+
+async function fetchProviderModels(
+  providerType: string,
+  apiKey?: string,
+  baseUrl?: string,
+): Promise<string[]> {
+  switch (providerType) {
+    case 'anthropic': {
+      const res = await fetch('https://api.anthropic.com/v1/models?limit=100', {
+        headers: { 'x-api-key': apiKey ?? '', 'anthropic-version': '2023-06-01' },
+      })
+      if (!res.ok) throw new Error(`Anthropic error ${res.status}: ${await res.text()}`)
+      const data = await res.json() as any
+      return (data.data as any[]).map(m => m.id as string).sort()
+    }
+
+    case 'openai': {
+      const base = baseUrl ?? 'https://api.openai.com/v1'
+      const res  = await fetch(`${base}/models`, {
+        headers: { Authorization: `Bearer ${apiKey ?? ''}` },
+      })
+      if (!res.ok) throw new Error(`OpenAI error ${res.status}: ${await res.text()}`)
+      const data = await res.json() as any
+      return (data.data as any[])
+        .map(m => m.id as string)
+        .filter(id => /^(gpt-|o1|o3|chatgpt)/.test(id))
+        .sort()
+    }
+
+    case 'ollama': {
+      // Ollama base URL may include /v1 suffix from OpenAI-compat path — strip it
+      const base = (baseUrl ?? 'http://localhost:11434').replace(/\/v1\/?$/, '')
+      const res  = await fetch(`${base}/api/tags`)
+      if (!res.ok) throw new Error(`Ollama error ${res.status}: ${await res.text()}`)
+      const data = await res.json() as any
+      return ((data.models ?? []) as any[]).map(m => m.name as string).sort()
+    }
+
+    case 'deepseek': {
+      const base = baseUrl ?? 'https://api.deepseek.com/v1'
+      const res  = await fetch(`${base}/models`, {
+        headers: { Authorization: `Bearer ${apiKey ?? ''}` },
+      })
+      if (!res.ok) throw new Error(`DeepSeek error ${res.status}: ${await res.text()}`)
+      const data = await res.json() as any
+      return (data.data as any[]).map(m => m.id as string).sort()
+    }
+
+    case 'custom': {
+      if (!baseUrl) throw new Error('Base URL is required for a custom provider')
+      const res = await fetch(`${baseUrl}/models`, {
+        headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
+      })
+      if (!res.ok) throw new Error(`Custom provider error ${res.status}: ${await res.text()}`)
+      const data = await res.json() as any
+      // Support both OpenAI-style { data: [] } and { models: [] }
+      const list: any[] = data.data ?? data.models ?? []
+      return list.map(m => (m.id ?? m.name) as string).filter(Boolean).sort()
+    }
+
+    default:
+      throw new Error(`Unknown provider type: ${providerType}`)
+  }
 }

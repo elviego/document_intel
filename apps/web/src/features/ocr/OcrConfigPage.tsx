@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/Badge'
 import { errorMessage } from '@/lib/api-client'
 import {
   useLlmProviders, useCreateLlmProvider, useUpdateLlmProvider,
-  useDeleteLlmProvider, useSetDefaultProvider, useOcrConfigs, useUpdateOcrConfig,
+  useDeleteLlmProvider, useSetDefaultProvider, useFetchProviderModels,
+  useOcrConfigs, useUpdateOcrConfig,
   useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook,
 } from './hooks/useOcrConfig'
 import type { LlmProvider, LlmProviderType, OcrDocumentConfig, OcrWebhook } from './hooks/useOcrConfig'
@@ -49,8 +50,9 @@ function ProviderModal({
   open: boolean; onClose: () => void; existing?: LlmProvider
 }) {
   const { t } = useTranslation()
-  const create = useCreateLlmProvider()
-  const update = useUpdateLlmProvider()
+  const create       = useCreateLlmProvider()
+  const update       = useUpdateLlmProvider()
+  const fetchModels  = useFetchProviderModels()
 
   const [form, setForm] = useState({
     name:         existing?.name         ?? '',
@@ -60,11 +62,44 @@ function ProviderModal({
     defaultModel: existing?.defaultModel ?? '',
     isActive:     existing?.isActive     ?? true,
   })
+  const [fetchedModels, setFetchedModels] = useState<string[]>([])
+  const [fetchError,    setFetchError]    = useState<string>('')
 
   const set      = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
   const setCheck = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setForm(f => ({ ...f, [k]: e.target.checked }))
+
+  // Reset fetched models when provider type changes
+  const handleProviderTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    setForm(f => ({ ...f, providerType: e.target.value as LlmProviderType, defaultModel: '' }))
+    setFetchedModels([])
+    setFetchError('')
+  }
+
+  const canFetchModels =
+    form.providerType === 'ollama'
+      ? true  // Ollama needs no API key
+      : !!form.apiKey || (!!existing && form.providerType !== 'custom')
+
+  const handleFetchModels = async () => {
+    setFetchError('')
+    try {
+      const result = await fetchModels.mutateAsync({
+        providerType: form.providerType,
+        apiKey:       form.apiKey || undefined,
+        baseUrl:      form.baseUrl || undefined,
+      })
+      const models = result.models
+      setFetchedModels(models)
+      // Auto-select if current value is valid or pick the first
+      if (models.length > 0 && !models.includes(form.defaultModel)) {
+        setForm(f => ({ ...f, defaultModel: models[0] }))
+      }
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to fetch models')
+    }
+  }
 
   const handleSubmit = async () => {
     const body: any = {
@@ -81,9 +116,10 @@ function ProviderModal({
     onClose()
   }
 
-  const isPending = create.isPending || update.isPending
-  const error     = create.error || update.error
-  const modelHint = PROVIDER_TYPES.find(p => p.value === form.providerType)?.hint ?? ''
+  const isPending  = create.isPending || update.isPending
+  const isFetching = fetchModels.isPending
+  const error      = create.error || update.error
+  const modelHint  = PROVIDER_TYPES.find(p => p.value === form.providerType)?.hint ?? ''
 
   return (
     <Modal open={open} onClose={onClose} title={existing ? 'Edit LLM Provider' : 'Add LLM Provider'}>
@@ -94,7 +130,7 @@ function ProviderModal({
           <label className="block text-sm font-medium text-gray-700">Provider type</label>
           <select
             value={form.providerType}
-            onChange={set('providerType')}
+            onChange={handleProviderTypeChange}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
           >
             {PROVIDER_TYPES.map(p => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -120,12 +156,42 @@ function ProviderModal({
           }
         />
 
-        <Input
-          label="Default model"
-          value={form.defaultModel}
-          onChange={set('defaultModel')}
-          placeholder={modelHint}
-        />
+        {/* Model field — dropdown when fetched, text input as fallback */}
+        <div className="space-y-1">
+          <div className="flex items-center justify-between">
+            <label className="block text-sm font-medium text-gray-700">Default model</label>
+            <button
+              type="button"
+              onClick={handleFetchModels}
+              disabled={!canFetchModels || isFetching}
+              className="text-xs text-brand-600 hover:underline disabled:opacity-40 disabled:cursor-not-allowed"
+            >
+              {isFetching ? 'Fetching…' : 'Fetch available models'}
+            </button>
+          </div>
+
+          {fetchedModels.length > 0 ? (
+            <select
+              value={form.defaultModel}
+              onChange={set('defaultModel')}
+              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-brand-500"
+            >
+              <option value="">— select a model —</option>
+              {fetchedModels.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+          ) : (
+            <Input
+              value={form.defaultModel}
+              onChange={set('defaultModel')}
+              placeholder={modelHint}
+            />
+          )}
+
+          {fetchError && <p className="text-xs text-red-500">{fetchError}</p>}
+          {fetchedModels.length > 0 && (
+            <p className="text-xs text-gray-400">{fetchedModels.length} models fetched</p>
+          )}
+        </div>
 
         <label className="flex items-center gap-2 text-sm cursor-pointer">
           <input
