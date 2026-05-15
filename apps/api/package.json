@@ -1,5 +1,5 @@
 {
-  "name": "@fin-tribe/api",
+  "name": "@document-intel/api",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -23,7 +23,7 @@
     "@fastify/rate-limit": "^10.1.1",
     "@fastify/swagger": "^9.1.0",
     "@fastify/swagger-ui": "^5.1.0",
-    "@fin-tribe/shared-types": "workspace:*",
+    "@document-intel/shared-types": "workspace:*",
     "bcryptjs": "^2.4.3",
     "canvas": "^3.2.3",
     "csv-parse": "^5.5.6",
@@ -41,8 +41,8 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@fin-tribe/eslint-config": "workspace:*",
-    "@fin-tribe/tsconfig": "workspace:*",
+    "@document-intel/eslint-config": "workspace:*",
+    "@document-intel/tsconfig": "workspace:*",
     "@types/bcryptjs": "^2.4.6",
     "@types/pdf-parse": "^1.1.5",
     "drizzle-kit": "^0.28.1",

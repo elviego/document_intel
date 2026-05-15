@@ -1,5 +1,5 @@
 {
-  "extends": "@fin-tribe/tsconfig/node.json",
+  "extends": "@document-intel/tsconfig/node.json",
   "compilerOptions": { "composite": true },
   "include": ["vite.config.ts"]
 }

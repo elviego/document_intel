@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm'
 import type { DB } from '../db/client.js'
 import { children, enrollmentPlans } from '../db/schema.js'
-import type { StudentDTO, CreateStudentDTO, EnrollmentPlanDTO } from '@fin-tribe/shared-types'
+import type { StudentDTO, CreateStudentDTO, EnrollmentPlanDTO } from '@document-intel/shared-types'
 
 type Row = typeof children.$inferSelect
 type PlanRow = typeof enrollmentPlans.$inferSelect

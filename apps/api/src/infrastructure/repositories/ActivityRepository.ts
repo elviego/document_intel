@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm'
 import type { DB } from '../db/client.js'
 import { activities, studentActivities, children } from '../db/schema.js'
-import type { ActivityDTO, CreateActivityDTO } from '@fin-tribe/shared-types'
+import type { ActivityDTO, CreateActivityDTO } from '@document-intel/shared-types'
 
 export class ActivityRepository {
   constructor(private readonly db: DB) {}

@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
-import type { ActivityDTO, CreateActivityDTO, ChildDTO } from '@fin-tribe/shared-types'
+import type { ActivityDTO, CreateActivityDTO, ChildDTO } from '@document-intel/shared-types'
 
 function useActivities(schoolYearId: string) {
   return useQuery({

@@ -3,7 +3,7 @@ import type { DB } from '../db/client.js'
 import { mealRecords, mealPricing, children, mealTypes, childMealPlans } from '../db/schema.js'
 import type { IMealRepository } from '../../domain/repositories/IMealRepository.js'
 import type { MealRecord, MealPricing, Child } from '../../domain/entities/MealRecord.js'
-import type { MealTypeDTO, ChildMealPlanDTO } from '@fin-tribe/shared-types'
+import type { MealTypeDTO, ChildMealPlanDTO } from '@document-intel/shared-types'
 
 export class MealRepository implements IMealRepository {
   constructor(private readonly db: DB) {}

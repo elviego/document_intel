@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
-import type { SalaryEntryDTO } from '@fin-tribe/shared-types'
+import type { SalaryEntryDTO } from '@document-intel/shared-types'
 
 const SALARY_TYPES = [
   { value: 'contrato',   label: 'Contrato' },

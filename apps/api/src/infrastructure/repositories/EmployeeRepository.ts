@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { DB } from '../db/client.js'
 import { employees } from '../db/schema.js'
-import type { EmployeeDTO, CreateEmployeeDTO } from '@fin-tribe/shared-types'
+import type { EmployeeDTO, CreateEmployeeDTO } from '@document-intel/shared-types'
 
 export class EmployeeRepository {
   constructor(private readonly db: DB) {}

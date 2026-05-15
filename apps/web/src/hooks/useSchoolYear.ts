@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { SchoolYearDTO } from '@fin-tribe/shared-types'
+import type { SchoolYearDTO } from '@document-intel/shared-types'
 
 export function useSchoolYears() {
   return useQuery({

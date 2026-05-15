@@ -7,7 +7,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
-import type { StudentDTO, CreateStudentDTO, EnrollmentPlanDTO } from '@fin-tribe/shared-types'
+import type { StudentDTO, CreateStudentDTO, EnrollmentPlanDTO } from '@document-intel/shared-types'
 
 function useStudents(schoolYearId: string) {
   return useQuery({

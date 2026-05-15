@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { auth } from '@/lib/auth'
 import { StudentImportModal } from './StudentImportModal'
-import type { ChildDTO, MealRecordDTO, ChildMonthlyBillingDTO, MealTypeDTO } from '@fin-tribe/shared-types'
+import type { ChildDTO, MealRecordDTO, ChildMonthlyBillingDTO, MealTypeDTO } from '@document-intel/shared-types'
 
 interface MealPricing {
   id: string; schoolYearId: string; mealType: 'com_sopa' | 'sem_sopa'

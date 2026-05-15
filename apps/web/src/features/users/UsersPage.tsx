@@ -8,7 +8,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { Badge } from '@/components/ui/Badge'
-import type { Role } from '@fin-tribe/shared-types'
+import type { Role } from '@document-intel/shared-types'
 
 interface UserDTO {
   id: string

@@ -1,6 +1,6 @@
 import { parse } from 'csv-parse/sync'
 import type { MealRepository } from '../../../infrastructure/repositories/MealRepository.js'
-import type { ImportResultDTO } from '@fin-tribe/shared-types'
+import type { ImportResultDTO } from '@document-intel/shared-types'
 
 export interface StudentRow {
   fullName: string

@@ -1,5 +1,5 @@
 {
-  "name": "@fin-tribe/web",
+  "name": "@document-intel/web",
   "version": "0.0.1",
   "private": true,
   "type": "module",
@@ -14,7 +14,7 @@
     "clean": "rm -rf dist .turbo"
   },
   "dependencies": {
-    "@fin-tribe/shared-types": "workspace:*",
+    "@document-intel/shared-types": "workspace:*",
     "@tanstack/react-query": "^5.62.2",
     "@tanstack/react-query-devtools": "^5.62.2",
     "clsx": "^2.1.1",
@@ -30,8 +30,8 @@
     "xlsx": "^0.18.5"
   },
   "devDependencies": {
-    "@fin-tribe/eslint-config": "workspace:*",
-    "@fin-tribe/tsconfig": "workspace:*",
+    "@document-intel/eslint-config": "workspace:*",
+    "@document-intel/tsconfig": "workspace:*",
     "@types/papaparse": "^5.3.15",
     "@types/react": "^18.3.12",
     "@types/react-dom": "^18.3.1",

@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import type {
   ImportPreviewDTO, ImportRowDTO, NewCategoryInput, ImportResultDTO,
-} from '@fin-tribe/shared-types'
+} from '@document-intel/shared-types'
 
 type Step = 'upload' | 'review' | 'done'
 

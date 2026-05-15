@@ -1,7 +1,7 @@
 import type { ITransactionRepository } from '../../../domain/repositories/ITransactionRepository.js'
 import type { ICategoryRepository } from '../../../domain/repositories/ICategoryRepository.js'
 import type { IBankAccountRepository } from '../../../infrastructure/repositories/BankAccountRepository.js'
-import type { ImportRowDTO, NewCategoryInput, ImportResultDTO } from '@fin-tribe/shared-types'
+import type { ImportRowDTO, NewCategoryInput, ImportResultDTO } from '@document-intel/shared-types'
 
 function norm(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()

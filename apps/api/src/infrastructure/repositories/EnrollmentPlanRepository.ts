@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm'
 import type { DB } from '../db/client.js'
 import { enrollmentPlans } from '../db/schema.js'
-import type { EnrollmentPlanDTO, CreateEnrollmentPlanDTO } from '@fin-tribe/shared-types'
+import type { EnrollmentPlanDTO, CreateEnrollmentPlanDTO } from '@document-intel/shared-types'
 
 export class EnrollmentPlanRepository {
   constructor(private readonly db: DB) {}

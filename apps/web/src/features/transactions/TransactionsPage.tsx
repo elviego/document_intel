@@ -14,7 +14,7 @@ import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
 import { ImportModal } from './ImportModal'
-import type { TransactionDTO, CategoryDTO } from '@fin-tribe/shared-types'
+import type { TransactionDTO, CategoryDTO } from '@document-intel/shared-types'
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 function useTransactions(filters: Record<string, string>) {

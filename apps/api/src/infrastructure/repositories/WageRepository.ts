@@ -1,7 +1,7 @@
 import { eq, desc } from 'drizzle-orm'
 import type { DB } from '../db/client.js'
 import { wages } from '../db/schema.js'
-import type { WageDTO } from '@fin-tribe/shared-types'
+import type { WageDTO } from '@document-intel/shared-types'
 import { calculateWage } from '../../domain/services/IrsCalculator.js'
 
 type WageInput = {

@@ -2,7 +2,7 @@ import { eq, sql } from 'drizzle-orm'
 import type { DB } from '../db/client.js'
 import { budgetEntries, transactions } from '../db/schema.js'
 import type { BudgetEntry } from '../../domain/entities/SalaryEntry.js'
-import type { BudgetExecutionDTO } from '@fin-tribe/shared-types'
+import type { BudgetExecutionDTO } from '@document-intel/shared-types'
 
 export interface IBudgetRepository {
   findByYear(schoolYearId: string): Promise<BudgetEntry[]>

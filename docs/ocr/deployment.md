@@ -113,8 +113,8 @@ pnpm dev
 Or individually:
 
 ```bash
-pnpm --filter @fin-tribe/api dev
-pnpm --filter @fin-tribe/web dev
+pnpm --filter @document-intel/api dev
+pnpm --filter @document-intel/web dev
 ```
 
 ### 6 — Create your first admin user
@@ -308,7 +308,7 @@ Follow Step 2 above exactly.
 
    Add `serve` as a dependency:
    ```bash
-   pnpm --filter @fin-tribe/web add -D serve
+   pnpm --filter @document-intel/web add -D serve
    ```
 
 3. Variables:
@@ -450,7 +450,7 @@ RUN pnpm install --frozen-lockfile
 # ── build ────────────────────────────────────────────────────────
 FROM deps AS build
 COPY . .
-RUN pnpm --filter @fin-tribe/api build
+RUN pnpm --filter @document-intel/api build
 
 # ── runtime ──────────────────────────────────────────────────────
 FROM base AS runtime

@@ -1,6 +1,6 @@
 [build]
 builder = "NIXPACKS"
-buildCommand = "pnpm install --frozen-lockfile && pnpm turbo build --filter=@fin-tribe/api..."
+buildCommand = "pnpm install --frozen-lockfile && pnpm turbo build --filter=@document-intel/api..."
 
 [deploy]
 startCommand = "node apps/api/dist/migrate.js; node apps/api/dist/main.js"

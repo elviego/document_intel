@@ -1,5 +1,5 @@
 {
-  "name": "@fin-tribe/eslint-config",
+  "name": "@document-intel/eslint-config",
   "version": "0.0.1",
   "private": true,
   "main": "index.js",

@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { auth } from '@/lib/auth'
 import clsx from 'clsx'
-import type { BudgetEntryDTO, BudgetExecutionDTO, CategoryDTO, SchoolYearDTO } from '@fin-tribe/shared-types'
+import type { BudgetEntryDTO, BudgetExecutionDTO, CategoryDTO, SchoolYearDTO } from '@document-intel/shared-types'
 
 const SCHOOL_MONTHS = [9, 10, 11, 12, 1, 2, 3, 4, 5, 6, 7, 8]
 const MONTH_LABELS  = ['Set', 'Out', 'Nov', 'Dez', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago']

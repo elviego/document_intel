@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { Select } from '@/components/ui/Select'
-import type { EmployeeDTO, CreateEmployeeDTO, WageDTO, WageContractType, WageMaritalStatus, WagePreviewDTO } from '@fin-tribe/shared-types'
+import type { EmployeeDTO, CreateEmployeeDTO, WageDTO, WageContractType, WageMaritalStatus, WagePreviewDTO } from '@document-intel/shared-types'
 
 const CONTRACT_TYPES = [
   { value: 'contrato',   label: 'Contrato' },

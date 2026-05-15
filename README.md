@@ -273,8 +273,8 @@ pnpm dev
 Or run individually:
 
 ```bash
-pnpm --filter @fin-tribe/api dev
-pnpm --filter @fin-tribe/web dev
+pnpm --filter @document-intel/api dev
+pnpm --filter @document-intel/web dev
 ```
 
 ### 6 — Create your first admin user

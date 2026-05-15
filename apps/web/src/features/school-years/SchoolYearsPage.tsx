@@ -6,7 +6,7 @@ import { PageHeader } from '@/components/ui/PageHeader'
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
-import type { SchoolYearDTO } from '@fin-tribe/shared-types'
+import type { SchoolYearDTO } from '@document-intel/shared-types'
 
 function useSchoolYearsAdmin() {
   return useQuery({

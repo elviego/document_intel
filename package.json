@@ -1,5 +1,5 @@
 {
-  "name": "fin-tribe",
+  "name": "document-intel",
   "version": "0.0.1",
   "private": true,
   "description": "Tribo Verde financial tracking platform",
@@ -15,8 +15,8 @@
     "test": "turbo run test",
     "clean": "turbo run clean && rm -rf node_modules",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
-    "db:migrate": "pnpm --filter @fin-tribe/api exec drizzle-kit migrate",
-    "db:generate": "pnpm --filter @fin-tribe/api exec drizzle-kit generate",
+    "db:migrate": "pnpm --filter @document-intel/api exec drizzle-kit migrate",
+    "db:generate": "pnpm --filter @document-intel/api exec drizzle-kit generate",
     "db:seed": "psql $DATABASE_URL -f db/seed/categories.sql"
   },
   "devDependencies": {

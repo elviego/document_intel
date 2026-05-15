@@ -26,7 +26,7 @@ jobs:
         run: pnpm install --frozen-lockfile
 
       - name: Build shared packages
-        run: pnpm turbo build --filter=@fin-tribe/shared-types
+        run: pnpm turbo build --filter=@document-intel/shared-types
 
       - name: Typecheck
         run: pnpm turbo typecheck

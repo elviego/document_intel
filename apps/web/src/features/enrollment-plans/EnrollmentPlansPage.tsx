@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { Input } from '@/components/ui/Input'
 import { auth } from '@/lib/auth'
-import type { EnrollmentPlanDTO, CreateEnrollmentPlanDTO, ScheduleType, BillingCycle } from '@fin-tribe/shared-types'
+import type { EnrollmentPlanDTO, CreateEnrollmentPlanDTO, ScheduleType, BillingCycle } from '@document-intel/shared-types'
 
 const SCHEDULE_LABELS: Record<ScheduleType, string> = {
   full_time:          'Tempo Integral (5 dias/semana)',

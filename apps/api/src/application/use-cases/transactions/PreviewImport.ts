@@ -1,7 +1,7 @@
 import { read, utils } from 'xlsx'
 import type { ICategoryRepository } from '../../../domain/repositories/ICategoryRepository.js'
 import type { IBankAccountRepository } from '../../../infrastructure/repositories/BankAccountRepository.js'
-import type { ImportPreviewDTO, ImportRowDTO } from '@fin-tribe/shared-types'
+import type { ImportPreviewDTO, ImportRowDTO } from '@document-intel/shared-types'
 
 function norm(s: string) {
   return s.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim()

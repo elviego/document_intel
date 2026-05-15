@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { apiClient } from '@/lib/api-client'
-import type { CategoryDTO } from '@fin-tribe/shared-types'
+import type { CategoryDTO } from '@document-intel/shared-types'
 
 export function useCategories(includeInactive = false) {
   return useQuery({

@@ -3,7 +3,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { apiClient, errorMessage } from '@/lib/api-client'
 import { Modal } from '@/components/ui/Modal'
 import { Button } from '@/components/ui/Button'
-import type { ImportResultDTO } from '@fin-tribe/shared-types'
+import type { ImportResultDTO } from '@document-intel/shared-types'
 
 interface StudentRow { fullName: string; tuitionType: string }
 interface Preview { rows: StudentRow[]; parseErrors: string[] }
