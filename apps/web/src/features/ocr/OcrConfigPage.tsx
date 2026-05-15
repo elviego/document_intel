@@ -82,6 +82,18 @@ function ProviderModal({
 
   const canFetchModels = true
 
+  const modelsEndpoint = (() => {
+    const base = form.baseUrl.trim()
+    switch (form.providerType) {
+      case 'anthropic': return 'https://api.anthropic.com/v1/models'
+      case 'openai':    return `${base || 'https://api.openai.com/v1'}/models`
+      case 'deepseek':  return `${base || 'https://api.deepseek.com/v1'}/models`
+      case 'ollama':    return `${(base || 'http://localhost:11434').replace(/\/v1\/?$/, '')}/api/tags`
+      case 'custom':    return base ? `${base}/models` : null
+      default:          return null
+    }
+  })()
+
   const handleFetchModels = async () => {
     setFetchError('')
     try {
@@ -163,16 +175,23 @@ function ProviderModal({
           placeholder={existing ? '(leave blank to keep existing)' : 'sk-… (leave blank if not required)'}
         />
 
-        <Input
-          label="Base URL (optional)"
-          value={form.baseUrl}
-          onChange={set('baseUrl')}
-          placeholder={
-            form.providerType === 'ollama'   ? 'http://localhost:11434/v1' :
-            form.providerType === 'deepseek' ? 'https://api.deepseek.com/v1' :
-            'https://api.openai.com/v1'
-          }
-        />
+        <div className="space-y-1">
+          <Input
+            label="Base URL (optional)"
+            value={form.baseUrl}
+            onChange={set('baseUrl')}
+            placeholder={
+              form.providerType === 'ollama'   ? 'http://localhost:11434/v1' :
+              form.providerType === 'deepseek' ? 'https://api.deepseek.com/v1' :
+              'https://api.openai.com/v1'
+            }
+          />
+          {modelsEndpoint && (
+            <p className="text-[11px] font-mono text-gray-400 truncate">
+              <span className="text-gray-300">GET</span> {modelsEndpoint}
+            </p>
+          )}
+        </div>
 
         {/* Model field — dropdown when fetched, text input as fallback */}
         <div className="space-y-1">
