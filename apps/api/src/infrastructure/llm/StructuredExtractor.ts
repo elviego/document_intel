@@ -86,10 +86,11 @@ const SCHEMAS: Record<OcrDocumentType, string> = {
 }`,
 }
 
-// Strip ```json ... ``` or ``` ... ``` fences that some models add despite instructions
+// Strip ```json ... ``` or ``` ... ``` fences that some models add despite instructions.
+// Use a non-anchored search so leading/trailing prose is tolerated.
 function extractJson(content: string): string {
   const trimmed = content.trim()
-  const fenced  = trimmed.match(/^```(?:json)?\s*\r?\n?([\s\S]*?)\r?\n?```$/s)
+  const fenced  = trimmed.match(/```(?:json)?\s*\n([\s\S]*?)\n```/)
   return fenced ? fenced[1].trim() : trimmed
 }
 

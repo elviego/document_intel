@@ -12,7 +12,7 @@ import {
   documentFileUrl, documentExportUrl,
 } from './hooks/useOcr'
 import type { OcrDocumentType, OcrJob, OcrStatus } from './hooks/useOcr'
-import { useLlmProviders } from './hooks/useOcrConfig'
+import { useLlmProviders, useFetchProviderModels } from './hooks/useOcrConfig'
 import { OcrResultViewer } from './components/OcrResultViewer'
 import { ConfidenceBadge } from './components/ConfidenceBadge'
 import { DOC_TYPES } from './OcrPage'
@@ -120,12 +120,37 @@ function OverrideModal({
   currentType: OcrDocumentType | null
 }) {
   const { t } = useTranslation()
-  const process = useProcessDocument()
+  const process      = useProcessDocument()
+  const fetchModels  = useFetchProviderModels()
   const { data: providers = [] } = useLlmProviders()
 
-  const [docType,    setDocType]    = useState<OcrDocumentType | ''>(currentType ?? '')
-  const [providerId, setProviderId] = useState('')
-  const [model,      setModel]      = useState('')
+  const [docType,        setDocType]        = useState<OcrDocumentType | ''>(currentType ?? '')
+  const [providerId,     setProviderId]     = useState('')
+  const [model,          setModel]          = useState('')
+  const [fetchedModels,  setFetchedModels]  = useState<string[]>([])
+  const [fetchError,     setFetchError]     = useState('')
+
+  const selectedProvider = providers.find(p => p.id === providerId)
+
+  const handleProviderChange = async (id: string) => {
+    setProviderId(id)
+    setModel('')
+    setFetchedModels([])
+    setFetchError('')
+    if (!id) return
+    const prov = providers.find(p => p.id === id)
+    if (!prov) return
+    try {
+      const result = await fetchModels.mutateAsync({
+        providerType: prov.providerType as any,
+        baseUrl:      prov.baseUrl ?? undefined,
+      })
+      setFetchedModels(result.models)
+      if (result.models.length > 0) setModel(result.models[0])
+    } catch (err) {
+      setFetchError(err instanceof Error ? err.message : 'Failed to fetch models')
+    }
+  }
 
   const handleSubmit = async () => {
     await process.mutateAsync({
@@ -155,10 +180,10 @@ function OverrideModal({
         </div>
 
         <div className="space-y-1">
-          <label className="block font-medium text-gray-700">LLM provider override</label>
+          <label className="block font-medium text-gray-700">LLM provider</label>
           <select
             value={providerId}
-            onChange={e => setProviderId(e.target.value)}
+            onChange={e => handleProviderChange(e.target.value)}
             className="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-brand-500"
           >
             <option value="">— Use configured default —</option>
@@ -168,16 +193,33 @@ function OverrideModal({
           </select>
         </div>
 
-        <div className="space-y-1">
-          <label className="block font-medium text-gray-700">Model override</label>
-          <input
-            type="text"
-            value={model}
-            onChange={e => setModel(e.target.value)}
-            placeholder="Leave blank to use provider default"
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500"
-          />
-        </div>
+        {providerId && (
+          <div className="space-y-1">
+            <label className="block font-medium text-gray-700">
+              Model
+              {fetchModels.isPending && <span className="ml-2 text-xs text-gray-400 font-normal">Fetching…</span>}
+            </label>
+            {fetchedModels.length > 0 ? (
+              <select
+                value={model}
+                onChange={e => setModel(e.target.value)}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 bg-white text-sm focus:outline-none focus:ring-1 focus:ring-brand-500"
+              >
+                <option value="">— Use provider default ({selectedProvider?.defaultModel || 'none'}) —</option>
+                {fetchedModels.map(m => <option key={m} value={m}>{m}</option>)}
+              </select>
+            ) : (
+              <input
+                type="text"
+                value={model}
+                onChange={e => setModel(e.target.value)}
+                placeholder={selectedProvider?.defaultModel || 'Leave blank for provider default'}
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-brand-500"
+              />
+            )}
+            {fetchError && <p className="text-xs text-amber-600">{fetchError}</p>}
+          </div>
+        )}
 
         {process.isError && (
           <p className="text-red-600 text-xs">{errorMessage(process.error)}</p>
@@ -509,9 +551,18 @@ export default function OcrDocumentPage() {
 
           {/* Processing indicator */}
           {isProcessing && (
-            <div className="flex items-center gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
-              <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full" />
-              {t('ocr.processingMessage')}
+            <div className="flex items-center justify-between gap-3 p-4 bg-blue-50 border border-blue-200 rounded-lg text-sm text-blue-700">
+              <div className="flex items-center gap-3">
+                <div className="animate-spin w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full" />
+                {t('ocr.processingMessage')}
+              </div>
+              <button
+                onClick={() => cancel.mutate(doc.id)}
+                disabled={cancel.isPending}
+                className="text-xs font-medium text-red-600 hover:text-red-800 border border-red-200 bg-white hover:bg-red-50 px-2.5 py-1 rounded transition-colors disabled:opacity-40 shrink-0"
+              >
+                {cancel.isPending ? 'Stopping…' : 'Stop'}
+              </button>
             </div>
           )}
 

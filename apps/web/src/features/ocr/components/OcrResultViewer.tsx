@@ -86,6 +86,19 @@ function JsonViewer({ data, onCopy }: { data: unknown; onCopy: () => void }) {
   )
 }
 
+// ── Unwrap legacy { raw: "```json...```" } payloads ──────────────────────────
+
+function unwrapStructuredData(data: Record<string, unknown>): Record<string, unknown> {
+  const keys = Object.keys(data)
+  if (keys.length === 1 && keys[0] === 'raw' && typeof data.raw === 'string') {
+    const raw = (data.raw as string).trim()
+    const fenced = raw.match(/```(?:json)?\s*\n([\s\S]*?)\n```/)
+    const json = fenced ? fenced[1].trim() : raw
+    try { return JSON.parse(json) as Record<string, unknown> } catch { /* fall through */ }
+  }
+  return data
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 interface Props { job: OcrJob }
@@ -139,7 +152,7 @@ export function OcrResultViewer({ job }: Props) {
       {tab === 'structured' && (
         <div>
           {meta.structuredData ? (
-            <JsonViewer data={meta.structuredData} onCopy={() => {}} />
+            <JsonViewer data={unwrapStructuredData(meta.structuredData)} onCopy={() => {}} />
           ) : (
             <p className="text-sm text-gray-500">No LLM extraction was run. Configure a provider on the settings page.</p>
           )}
