@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/Badge'
 import { errorMessage } from '@/lib/api-client'
 import {
   useLlmProviders, useCreateLlmProvider, useUpdateLlmProvider,
-  useDeleteLlmProvider, useSetDefaultProvider, useFetchProviderModels,
+  useDeleteLlmProvider, useSetDefaultProvider, useFetchProviderModels, useTestLlmProvider,
   useOcrConfigs, useUpdateOcrConfig,
   useWebhooks, useCreateWebhook, useUpdateWebhook, useDeleteWebhook,
 } from './hooks/useOcrConfig'
@@ -53,6 +53,7 @@ function ProviderModal({
   const create       = useCreateLlmProvider()
   const update       = useUpdateLlmProvider()
   const fetchModels  = useFetchProviderModels()
+  const testProvider = useTestLlmProvider()
 
   const [form, setForm] = useState({
     name:         existing?.name         ?? '',
@@ -64,6 +65,8 @@ function ProviderModal({
   })
   const [fetchedModels, setFetchedModels] = useState<string[]>([])
   const [fetchError,    setFetchError]    = useState<string>('')
+  const [testResult,    setTestResult]    = useState<{ response: string; model: string } | null>(null)
+  const [testError,     setTestError]     = useState<string>('')
 
   const set      = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }))
@@ -116,8 +119,26 @@ function ProviderModal({
     onClose()
   }
 
+  const handleTest = async () => {
+    setTestError('')
+    setTestResult(null)
+    try {
+      const result = await testProvider.mutateAsync({
+        providerType: form.providerType,
+        apiKey:       form.apiKey || undefined,
+        baseUrl:      form.baseUrl || undefined,
+        defaultModel: form.defaultModel,
+      })
+      setTestResult(result)
+    } catch (err) {
+      setTestError(err instanceof Error ? err.message : 'Test failed')
+    }
+  }
+
+  const canTest    = !!form.defaultModel && (form.providerType === 'ollama' || !!form.apiKey || !!existing)
   const isPending  = create.isPending || update.isPending
   const isFetching = fetchModels.isPending
+  const isTesting  = testProvider.isPending
   const error      = create.error || update.error
   const modelHint  = PROVIDER_TYPES.find(p => p.value === form.providerType)?.hint ?? ''
 
@@ -206,11 +227,43 @@ function ProviderModal({
         {error && <p className="text-sm text-red-600">{errorMessage(error)}</p>}
       </div>
 
-      <div className="flex justify-end gap-2 pt-2">
-        <Button variant="secondary" onClick={onClose} disabled={isPending}>{t('common.cancel')}</Button>
-        <Button onClick={handleSubmit} disabled={!form.name || !form.defaultModel || isPending}>
-          {isPending ? t('common.loading') : t('common.save')}
+      {/* Test response */}
+      {(isTesting || testResult || testError) && (
+        <div className="mt-3 rounded-lg border border-gray-200 overflow-hidden">
+          <div className="flex items-center justify-between px-3 py-1.5 bg-gray-50 border-b border-gray-200">
+            <span className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">Test response</span>
+            {testResult && (
+              <span className="text-[10px] text-gray-400 font-mono">{testResult.model}</span>
+            )}
+          </div>
+          <div className="px-3 py-2.5 text-sm min-h-[4rem]">
+            {isTesting && (
+              <span className="text-gray-400 text-xs animate-pulse">Sending test prompt…</span>
+            )}
+            {testError && (
+              <p className="text-red-500 text-xs">{testError}</p>
+            )}
+            {testResult && (
+              <p className="text-gray-700 whitespace-pre-wrap leading-relaxed">{testResult.response}</p>
+            )}
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-between items-center pt-2">
+        <Button
+          variant="secondary"
+          onClick={handleTest}
+          disabled={!canTest || isTesting || isPending}
+        >
+          {isTesting ? 'Testing…' : 'Test'}
         </Button>
+        <div className="flex gap-2">
+          <Button variant="secondary" onClick={onClose} disabled={isPending}>{t('common.cancel')}</Button>
+          <Button onClick={handleSubmit} disabled={!form.name || !form.defaultModel || isPending}>
+            {isPending ? t('common.loading') : t('common.save')}
+          </Button>
+        </div>
       </div>
     </Modal>
   )

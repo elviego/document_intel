@@ -2,6 +2,7 @@ import type { FastifyPluginAsync } from 'fastify'
 import { z } from 'zod'
 import { db } from '../../db/client.js'
 import { OcrRepository } from '../../repositories/OcrRepository.js'
+import { buildLlmProvider } from '../../llm/LlmProviderFactory.js'
 import { NotFoundError } from '../../../shared/errors.js'
 
 const repo = new OcrRepository(db)
@@ -12,6 +13,32 @@ const docTypeEnum      = z.enum(['invoice','receipt','contract','id_document','m
 export const ocrConfigRoutes: FastifyPluginAsync = async (app) => {
 
   // ── LLM Providers ───────────────────────────────────────────────────────────
+
+  // POST /v1/ocr/providers/test — send a test prompt to a provider
+  app.post('/providers/test', async (req, reply) => {
+    const { providerType, apiKey, baseUrl, defaultModel } = z.object({
+      providerType: providerTypeEnum,
+      apiKey:       z.string().optional(),
+      baseUrl:      z.string().optional(),
+      defaultModel: z.string().min(1),
+    }).parse(req.body)
+
+    try {
+      const llm = buildLlmProvider({
+        id: '', name: '', providerType, apiKey: apiKey ?? null,
+        baseUrl: baseUrl ?? null, defaultModel, isActive: true, isDefault: false, config: null,
+        createdAt: new Date(), updatedAt: new Date(),
+      } as any)
+      const { content, model } = await llm.complete(
+        'You are a helpful assistant.',
+        'What LLM model are you and where are you running?',
+      )
+      return reply.send({ response: content, model })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err)
+      return reply.status(400).send({ error: msg })
+    }
+  })
 
   // POST /v1/ocr/providers/fetch-models — proxy to provider's model list API
   app.post('/providers/fetch-models', async (req, reply) => {

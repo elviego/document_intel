@@ -68,6 +68,13 @@ export function useDeleteLlmProvider() {
   })
 }
 
+export function useTestLlmProvider() {
+  return useMutation({
+    mutationFn: (body: { providerType: LlmProviderType; apiKey?: string; baseUrl?: string; defaultModel: string }) =>
+      apiClient.post<{ response: string; model: string }>('/v1/ocr/providers/test', body),
+  })
+}
+
 export function useFetchProviderModels() {
   return useMutation({
     mutationFn: (body: { providerType: LlmProviderType; apiKey?: string; baseUrl?: string }) =>
