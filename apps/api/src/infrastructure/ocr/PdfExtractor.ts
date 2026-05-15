@@ -3,14 +3,19 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
 import { writeFile, unlink } from 'node:fs/promises'
+import { createRequire } from 'node:module'
 import type { IOcrEngine, OcrEngineResult } from './IOcrEngine.js'
 import type { OcrPageResult } from '../../domain/entities/OcrDocument.js'
 import { TesseractEngine } from './TesseractEngine.js'
 
+const _require = createRequire(import.meta.url)
+
 async function getDocument(buffer: Buffer) {
-  // pdfjs-dist legacy build works in Node.js without a worker
   const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs' as any) as any
-  pdfjsLib.GlobalWorkerOptions.workerSrc = ''
+  // pdfjs-dist v4 requires a real workerSrc even in Node.js; empty string triggers "fake worker" error
+  if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+    pdfjsLib.GlobalWorkerOptions.workerSrc = _require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
+  }
   return pdfjsLib.getDocument({ data: new Uint8Array(buffer) }).promise
 }
 
