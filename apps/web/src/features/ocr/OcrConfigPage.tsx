@@ -80,10 +80,7 @@ function ProviderModal({
     setFetchError('')
   }
 
-  const canFetchModels =
-    form.providerType === 'ollama'
-      ? true  // Ollama needs no API key
-      : !!form.apiKey || (!!existing && form.providerType !== 'custom')
+  const canFetchModels = true
 
   const handleFetchModels = async () => {
     setFetchError('')
@@ -135,7 +132,7 @@ function ProviderModal({
     }
   }
 
-  const canTest    = !!form.defaultModel && (form.providerType === 'ollama' || !!form.apiKey || !!existing)
+  const canTest    = !!form.defaultModel
   const isPending  = create.isPending || update.isPending
   const isFetching = fetchModels.isPending
   const isTesting  = testProvider.isPending
@@ -159,11 +156,11 @@ function ProviderModal({
         </div>
 
         <Input
-          label="API Key"
+          label="API Key (optional)"
           type="password"
           value={form.apiKey}
           onChange={set('apiKey')}
-          placeholder={existing ? '(leave blank to keep existing)' : 'sk-…'}
+          placeholder={existing ? '(leave blank to keep existing)' : 'sk-… (leave blank if not required)'}
         />
 
         <Input
