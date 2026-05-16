@@ -179,11 +179,65 @@ function UploadModal({ open, onClose }: { open: boolean; onClose: () => void }) 
   )
 }
 
+// ── Bulk action bar ───────────────────────────────────────────────────────────
+
+function BulkBar({
+  selected, docs, onClear, onDeleteAll, onRerunAll, onRerunFailed,
+}: {
+  selected:      Set<string>
+  docs:          OcrDocument[]
+  onClear:       () => void
+  onDeleteAll:   () => void
+  onRerunAll:    () => void
+  onRerunFailed: () => void
+}) {
+  const count        = selected.size
+  const selectedDocs = docs.filter(d => selected.has(d.id))
+  const failedCount  = selectedDocs.filter(d => d.status === 'failed').length
+  const activeCount  = selectedDocs.filter(d => d.status === 'processing' || d.status === 'pending').length
+
+  return (
+    <div className="flex items-center justify-between px-4 py-2.5 bg-brand-50 border-b border-brand-200 text-xs font-mono">
+      <div className="flex items-center gap-3 text-brand-700">
+        <span className="font-semibold">{count} selected</span>
+        <button onClick={onClear} className="text-brand-400 hover:text-brand-600 underline underline-offset-2">
+          Clear
+        </button>
+      </div>
+      <div className="flex items-center gap-2">
+        {failedCount > 0 && (
+          <button
+            onClick={onRerunFailed}
+            className="px-2.5 py-1 rounded border border-amber-200 bg-white text-amber-700 hover:bg-amber-50 transition-colors"
+          >
+            Re-run failed ({failedCount})
+          </button>
+        )}
+        {activeCount === 0 && (
+          <button
+            onClick={onRerunAll}
+            className="px-2.5 py-1 rounded border border-brand-200 bg-white text-brand-700 hover:bg-brand-50 transition-colors"
+          >
+            Re-run all ({count})
+          </button>
+        )}
+        <button
+          onClick={onDeleteAll}
+          className="px-2.5 py-1 rounded border border-red-200 bg-white text-red-600 hover:bg-red-50 transition-colors"
+        >
+          Delete ({count})
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 export default function OcrPage() {
   const [showUpload, setShowUpload] = useState(false)
   const [page, setPage]         = useState(0)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
   const { data, isLoading }     = useOcrDocuments(page)
   const process                 = useProcessDocument()
   const cancel                  = useCancelProcessing()
@@ -191,6 +245,36 @@ export default function OcrPage() {
 
   const docs  = data?.items  ?? []
   const total = data?.total  ?? 0
+
+  const toggleSelect = (id: string) =>
+    setSelected(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+
+  const toggleAll = () =>
+    setSelected(prev => prev.size === docs.length ? new Set() : new Set(docs.map(d => d.id)))
+
+  const handleDeleteAll = async () => {
+    if (!confirm(`Delete ${selected.size} document(s)?`)) return
+    await Promise.all([...selected].map(id => remove.mutateAsync(id)))
+    setSelected(new Set())
+  }
+
+  const handleRerunAll = async () => {
+    await Promise.all([...selected].map(id => process.mutateAsync({ id })))
+    setSelected(new Set())
+  }
+
+  const handleRerunFailed = async () => {
+    const failedIds = docs.filter(d => selected.has(d.id) && d.status === 'failed').map(d => d.id)
+    await Promise.all(failedIds.map(id => process.mutateAsync({ id })))
+    setSelected(new Set())
+  }
+
+  const allSelected = docs.length > 0 && selected.size === docs.length
+  const someSelected = selected.size > 0
 
   return (
     <div className="h-full flex flex-col">
@@ -206,7 +290,7 @@ export default function OcrPage() {
         }
       />
 
-      <div className="flex-1 overflow-auto p-6">
+      <div className="flex-1 overflow-auto">
         {isLoading ? (
           <p className="text-xs text-gray-400 font-mono py-8 text-center">Loading…</p>
         ) : docs.length === 0 ? (
@@ -216,10 +300,28 @@ export default function OcrPage() {
             <Button size="sm" className="mt-4" onClick={() => setShowUpload(true)}>Upload first document</Button>
           </div>
         ) : (
-          <div className="bg-white border border-gray-200">
+          <div className="bg-white border border-gray-200 mx-6 mt-6">
+            {someSelected && (
+              <BulkBar
+                selected={selected}
+                docs={docs}
+                onClear={() => setSelected(new Set())}
+                onDeleteAll={handleDeleteAll}
+                onRerunAll={handleRerunAll}
+                onRerunFailed={handleRerunFailed}
+              />
+            )}
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="bg-gray-50 border-b border-gray-200">
+                  <th className="px-4 py-2.5 w-8">
+                    <input
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={toggleAll}
+                      className="rounded-sm border-gray-300 text-brand-600 cursor-pointer"
+                    />
+                  </th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400 font-mono">File</th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400 font-mono">Type</th>
                   <th className="text-left px-4 py-2.5 text-[10px] font-semibold uppercase tracking-widest text-gray-400 font-mono">Status</th>
@@ -231,7 +333,18 @@ export default function OcrPage() {
               </thead>
               <tbody className="divide-y divide-gray-100">
                 {docs.map(doc => (
-                  <tr key={doc.id} className="hover:bg-gray-50 group transition-colors">
+                  <tr
+                    key={doc.id}
+                    className={`hover:bg-gray-50 group transition-colors ${selected.has(doc.id) ? 'bg-brand-50' : ''}`}
+                  >
+                    <td className="px-4 py-2.5 w-8">
+                      <input
+                        type="checkbox"
+                        checked={selected.has(doc.id)}
+                        onChange={() => toggleSelect(doc.id)}
+                        className="rounded-sm border-gray-300 text-brand-600 cursor-pointer"
+                      />
+                    </td>
                     <td className="px-4 py-2.5">
                       <Link to={`/ocr/${doc.id}`} className="font-mono text-xs text-brand-600 hover:text-brand-500 hover:underline">
                         {doc.fileName}
@@ -288,7 +401,7 @@ export default function OcrPage() {
         )}
 
         {total > 50 && (
-          <div className="flex items-center justify-between mt-4 font-mono text-xs text-gray-400">
+          <div className="flex items-center justify-between mt-4 mx-6 font-mono text-xs text-gray-400">
             <button disabled={page === 0} onClick={() => setPage(p => p - 1)} className="disabled:opacity-30 hover:text-gray-600">← Prev</button>
             <span>{page + 1} / {Math.ceil(total / 50)}</span>
             <button disabled={(page + 1) * 50 >= total} onClick={() => setPage(p => p + 1)} className="disabled:opacity-30 hover:text-gray-600">Next →</button>
